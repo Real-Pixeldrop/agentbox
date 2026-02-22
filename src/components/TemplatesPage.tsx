@@ -27,6 +27,11 @@ interface Template {
   descKey: string;
   category: Category;
   icon: React.ElementType;
+  preconfigures: {
+    soul: boolean;
+    skills: string[];
+    channels: string[];
+  };
 }
 
 const CATEGORIES: { labelKey: string; label: Category; color: string }[] = [
@@ -39,17 +44,17 @@ const CATEGORIES: { labelKey: string; label: Category; color: string }[] = [
 ];
 
 const TEMPLATES: Template[] = [
-  { id: '1', nameKey: 'salesProspector', descKey: 'salesProspectorDesc', category: 'Business', icon: UserSearch },
-  { id: '2', nameKey: 'emailManager', descKey: 'emailManagerDesc', category: 'Business', icon: Inbox },
-  { id: '3', nameKey: 'meetingPrep', descKey: 'meetingPrepDesc', category: 'Business', icon: Briefcase },
-  { id: '4', nameKey: 'socialMediaManager', descKey: 'socialMediaManagerDesc', category: 'Marketing', icon: Share2 },
-  { id: '5', nameKey: 'contentWriter', descKey: 'contentWriterDesc', category: 'Marketing', icon: PenTool },
-  { id: '6', nameKey: 'seoAnalyst', descKey: 'seoAnalystDesc', category: 'Marketing', icon: Globe },
-  { id: '7', nameKey: 'customerSupport', descKey: 'customerSupportDesc', category: 'Support', icon: Headset },
-  { id: '8', nameKey: 'feedbackCollector', descKey: 'feedbackCollectorDesc', category: 'Support', icon: MessageSquare },
-  { id: '9', nameKey: 'invoiceTracker', descKey: 'invoiceTrackerDesc', category: 'Finance', icon: FileText },
-  { id: '10', nameKey: 'expenseReporter', descKey: 'expenseReporterDesc', category: 'Finance', icon: PieChart },
-  { id: '11', nameKey: 'customAgent', descKey: 'customAgentDesc', category: 'Custom', icon: Plus },
+  { id: '1', nameKey: 'salesProspector', descKey: 'salesProspectorDesc', category: 'Business', icon: UserSearch, preconfigures: { soul: true, skills: ['Prospection', 'CRM', 'Email'], channels: ['WhatsApp', 'Email'] } },
+  { id: '2', nameKey: 'emailManager', descKey: 'emailManagerDesc', category: 'Business', icon: Inbox, preconfigures: { soul: true, skills: ['Email', 'Reminders'], channels: ['Email'] } },
+  { id: '3', nameKey: 'meetingPrep', descKey: 'meetingPrepDesc', category: 'Business', icon: Briefcase, preconfigures: { soul: true, skills: ['Calendar', 'Email', 'Analytics'], channels: ['Email', 'Slack'] } },
+  { id: '4', nameKey: 'socialMediaManager', descKey: 'socialMediaManagerDesc', category: 'Marketing', icon: Share2, preconfigures: { soul: true, skills: ['Social Media', 'Analytics'], channels: ['Telegram', 'Discord'] } },
+  { id: '5', nameKey: 'contentWriter', descKey: 'contentWriterDesc', category: 'Marketing', icon: PenTool, preconfigures: { soul: true, skills: ['File Management', 'Analytics'], channels: ['Email'] } },
+  { id: '6', nameKey: 'seoAnalyst', descKey: 'seoAnalystDesc', category: 'Marketing', icon: Globe, preconfigures: { soul: true, skills: ['Analytics', 'Reminders'], channels: ['Email', 'Slack'] } },
+  { id: '7', nameKey: 'customerSupport', descKey: 'customerSupportDesc', category: 'Support', icon: Headset, preconfigures: { soul: true, skills: ['Email', 'CRM', 'Reminders'], channels: ['WhatsApp', 'Email', 'Discord'] } },
+  { id: '8', nameKey: 'feedbackCollector', descKey: 'feedbackCollectorDesc', category: 'Support', icon: MessageSquare, preconfigures: { soul: true, skills: ['Email', 'Analytics'], channels: ['Email', 'WhatsApp'] } },
+  { id: '9', nameKey: 'invoiceTracker', descKey: 'invoiceTrackerDesc', category: 'Finance', icon: FileText, preconfigures: { soul: true, skills: ['Email', 'Reminders', 'CRM'], channels: ['Email'] } },
+  { id: '10', nameKey: 'expenseReporter', descKey: 'expenseReporterDesc', category: 'Finance', icon: PieChart, preconfigures: { soul: true, skills: ['Analytics', 'File Management'], channels: ['Email'] } },
+  { id: '11', nameKey: 'customAgent', descKey: 'customAgentDesc', category: 'Custom', icon: Plus, preconfigures: { soul: false, skills: [], channels: [] } },
 ];
 
 const getCategoryColor = (category: Category) => {
@@ -184,9 +189,33 @@ export default function TemplatesPage() {
                     <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-[#3B82F6] transition-colors">
                       {name}
                     </h3>
-                    <p className="text-sm text-slate-400 leading-relaxed mb-8 flex-grow">
+                    <p className="text-sm text-slate-400 leading-relaxed mb-4 flex-grow">
                       {desc}
                     </p>
+
+                    {/* OpenClaw pre-configuration info */}
+                    {(template.preconfigures.soul || template.preconfigures.skills.length > 0) && (
+                      <div className="mb-4 p-3 rounded-lg bg-[#0D1117] border border-[#1E293B]/50">
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2">{t.templateDetail.preconfigures}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {template.preconfigures.soul && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              SOUL.md
+                            </span>
+                          )}
+                          {template.preconfigures.skills.map(skill => (
+                            <span key={skill} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                              {skill}
+                            </span>
+                          ))}
+                          {template.preconfigures.channels.map(ch => (
+                            <span key={ch} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">
+                              {ch}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <button className="group/btn relative w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#1E293B] hover:bg-[#3B82F6] text-white text-sm font-medium transition-all duration-300 overflow-hidden">
                       <span className="relative z-10">{t.templates.useTemplate}</span>

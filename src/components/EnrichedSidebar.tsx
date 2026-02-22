@@ -26,7 +26,8 @@ function cn(...inputs: ClassValue[]) {
 interface EnrichedSidebarProps {
   currentPage: string;
   onNavigate: (id: string) => void;
-  favoriteAgents?: { id: string; name: string; photo: string }[];
+  favoriteAgents?: { id: string; name: string; photo: string; active?: boolean }[];
+  onSelectAgent?: (id: string) => void;
 }
 
 interface NavItemProps {
@@ -89,13 +90,18 @@ const SectionHeader = ({ title, icon: Icon, actionIcon: ActionIcon }: { title: s
   </div>
 );
 
-const AgentLink = ({ name, avatarUrl, onClick }: { name: string; avatarUrl: string; onClick?: () => void }) => (
+const AgentLink = ({ name, avatarUrl, isAgentActive, onClick }: { name: string; avatarUrl: string; isAgentActive?: boolean; onClick?: () => void }) => (
   <button 
     onClick={onClick}
     className="group flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800/30 hover:text-slate-200 transition-all duration-200"
   >
-    <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full ring-1 ring-slate-700 group-hover:ring-slate-500 transition-all">
-      <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+    <div className="relative h-6 w-6 shrink-0">
+      <div className="h-6 w-6 overflow-hidden rounded-full ring-1 ring-slate-700 group-hover:ring-slate-500 transition-all">
+        <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+      </div>
+      {isAgentActive && (
+        <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#0F1219] shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
+      )}
     </div>
     <span className="truncate">{name}</span>
   </button>
@@ -118,6 +124,7 @@ export default function EnrichedSidebar({
   currentPage = 'home', 
   onNavigate,
   favoriteAgents = [],
+  onSelectAgent,
 }: EnrichedSidebarProps) {
   const { t, language, toggleLanguage } = useI18n();
   
@@ -131,9 +138,9 @@ export default function EnrichedSidebar({
   ];
 
   const defaultFavorites = [
-    { id: 'fav1', name: 'Alexandre Dubois', photo: 'https://randomuser.me/api/portraits/men/32.jpg' },
-    { id: 'fav2', name: 'Sarah Cohen', photo: 'https://randomuser.me/api/portraits/women/68.jpg' },
-    { id: 'fav3', name: 'Marie Laurent', photo: 'https://randomuser.me/api/portraits/women/44.jpg' },
+    { id: 'fav1', name: 'Alexandre Dubois', photo: 'https://randomuser.me/api/portraits/men/32.jpg', active: true },
+    { id: 'fav2', name: 'Sarah Cohen', photo: 'https://randomuser.me/api/portraits/women/68.jpg', active: true },
+    { id: 'fav3', name: 'Marie Laurent', photo: 'https://randomuser.me/api/portraits/women/44.jpg', active: true },
   ];
 
   const favorites = favoriteAgents.length > 0 ? favoriteAgents : defaultFavorites;
@@ -183,8 +190,9 @@ export default function EnrichedSidebar({
             <AgentLink 
               key={agent.id} 
               name={agent.name} 
-              avatarUrl={agent.photo} 
-              onClick={() => onNavigate('agents')}
+              avatarUrl={agent.photo}
+              isAgentActive={agent.active}
+              onClick={() => onSelectAgent ? onSelectAgent(agent.id) : onNavigate('agents')}
             />
           ))}
         </div>

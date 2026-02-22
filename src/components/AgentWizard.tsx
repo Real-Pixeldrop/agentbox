@@ -257,6 +257,14 @@ export default function CreateAgentWizard({ onClose }: AgentWizardProps) {
                       className="w-full bg-[#1E293B]/50 border border-[#1E293B] rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/50 focus:border-[#3B82F6] transition-all resize-none"
                     />
                   </div>
+
+                  {/* OpenClaw SOUL.md hint */}
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                    <Settings2 className="w-3.5 h-3.5 text-blue-400/60 shrink-0" />
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      This step creates your agent&apos;s <span className="text-blue-400 font-mono font-bold">SOUL.md</span> — the personality file that defines how your agent thinks, speaks, and behaves. The agent name becomes the folder name in OpenClaw.
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )}

@@ -147,10 +147,39 @@ const en = {
     customAgent: "Custom Agent",
     customAgentDesc: "Build a specialized agent from scratch with full logic control.",
   },
+  // Agent Detail
+  agentDetail: {
+    personality: "Personality",
+    memory: "Memory",
+    tools: "Tools",
+    skills: "Skills",
+    activity: "Activity",
+    channels: "Channels",
+    status: "Status",
+    deployChanges: "Deploy Changes",
+    soulHint: "This defines your agent's personality (SOUL.md)",
+    openclawHint: "Each tab maps to an OpenClaw config file. Personality → SOUL.md, Memory → MEMORY.md, Tools → TOOLS.md. Changes are deployed to the agent in real-time.",
+    memoryFiles: "Daily Memory Files",
+    searchMemory: "Search memories...",
+    memoryHint: "Memory files are auto-generated daily. MEMORY.md contains curated long-term knowledge. Daily files (memory/*.md) are raw session logs.",
+    modified: "Modified",
+    logStream: "Activity Log",
+    live: "LIVE",
+    installSkill: "Install Skill",
+    channelActive: "Listener connected",
+    channelInactive: "Not configured",
+  },
   // Favorites
   favorites: {
     addToFavorites: "Add to favorites",
     removeFromFavorites: "Remove from favorites",
+  },
+  // Templates detail
+  templateDetail: {
+    preconfigures: "Pre-configures",
+    soulMd: "SOUL.md",
+    defaultSkills: "Default skills",
+    suggestedChannels: "Suggested channels",
   },
 };
 

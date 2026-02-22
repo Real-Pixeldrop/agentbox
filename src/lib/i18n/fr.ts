@@ -149,10 +149,39 @@ const fr: Translations = {
     customAgent: "Agent Personnalisé",
     customAgentDesc: "Construisez un agent spécialisé de A à Z avec un contrôle logique complet.",
   },
+  // Agent Detail
+  agentDetail: {
+    personality: "Personnalité",
+    memory: "Mémoire",
+    tools: "Outils",
+    skills: "Compétences",
+    activity: "Activité",
+    channels: "Canaux",
+    status: "Statut",
+    deployChanges: "Déployer",
+    soulHint: "Ceci définit la personnalité de l'agent (SOUL.md)",
+    openclawHint: "Chaque onglet correspond à un fichier de config OpenClaw. Personnalité → SOUL.md, Mémoire → MEMORY.md, Outils → TOOLS.md. Les modifications sont déployées en temps réel.",
+    memoryFiles: "Fichiers mémoire quotidiens",
+    searchMemory: "Rechercher dans la mémoire...",
+    memoryHint: "Les fichiers mémoire sont auto-générés chaque jour. MEMORY.md contient les connaissances long-terme. Les fichiers quotidiens (memory/*.md) sont les logs bruts de session.",
+    modified: "Modifié",
+    logStream: "Journal d'activité",
+    live: "EN DIRECT",
+    installSkill: "Installer une compétence",
+    channelActive: "Canal connecté",
+    channelInactive: "Non configuré",
+  },
   // Favorites
   favorites: {
     addToFavorites: "Ajouter aux favoris",
     removeFromFavorites: "Retirer des favoris",
+  },
+  // Templates detail
+  templateDetail: {
+    preconfigures: "Pré-configure",
+    soulMd: "SOUL.md",
+    defaultSkills: "Compétences par défaut",
+    suggestedChannels: "Canaux suggérés",
   },
 };
 

@@ -18,6 +18,7 @@ import HomePage from '@/components/HomePage';
 import TeamsPage from '@/components/TeamsPage';
 import TemplatesPage from '@/components/TemplatesPage';
 import AgentWizard from '@/components/AgentWizard';
+import AgentDetailPanel from '@/components/AgentDetailPanel';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -45,7 +46,7 @@ const ChannelPill = ({ type }: { type: string }) => {
 
 const Toggle = ({ enabled, onChange }: { enabled: boolean; onChange: () => void }) => (
   <button 
-    onClick={onChange}
+    onClick={(e) => { e.stopPropagation(); onChange(); }}
     className={cn(
       "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
       enabled ? "bg-blue-600" : "bg-slate-700"
@@ -132,6 +133,7 @@ export default function AgentBoxDashboard() {
   const [currentPage, setCurrentPage] = useState('home');
   const [agents, setAgents] = useState<AgentData[]>(INITIAL_AGENTS);
   const [showWizard, setShowWizard] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const { t } = useI18n();
 
   const toggleAgent = (id: number) => {
@@ -148,9 +150,30 @@ export default function AgentBoxDashboard() {
 
   const favoriteAgents = agents
     .filter(a => a.favorite)
-    .map(a => ({ id: String(a.id), name: a.name, photo: a.photo }));
+    .map(a => ({ id: String(a.id), name: a.name, photo: a.photo, active: a.active }));
+
+  const selectedAgent = selectedAgentId !== null ? agents.find(a => a.id === selectedAgentId) : null;
+
+  const handleSelectAgent = (id: string) => {
+    const numId = parseInt(id);
+    setSelectedAgentId(numId);
+    setCurrentPage('agent-detail');
+  };
+
+  const handleNavigate = (page: string) => {
+    setSelectedAgentId(null);
+    setCurrentPage(page);
+  };
 
   const renderContent = () => {
+    if (currentPage === 'agent-detail' && selectedAgent) {
+      return (
+        <AgentDetailPanel 
+          agent={selectedAgent}
+          onBack={() => { setSelectedAgentId(null); setCurrentPage('agents'); }}
+        />
+      );
+    }
     switch (currentPage) {
       case 'home':
         return <HomePage />;
@@ -202,7 +225,8 @@ export default function AgentBoxDashboard() {
           {agents.map((agent) => (
             <div 
               key={agent.id}
-              className="group relative bg-[#131825] border border-slate-800/60 rounded-xl p-6 hover:border-slate-700 hover:shadow-2xl hover:shadow-black/40 transition-all duration-300"
+              onClick={() => handleSelectAgent(String(agent.id))}
+              className="group relative bg-[#131825] border border-slate-800/60 rounded-xl p-6 hover:border-slate-700 hover:shadow-2xl hover:shadow-black/40 transition-all duration-300 cursor-pointer"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -228,7 +252,7 @@ export default function AgentBoxDashboard() {
                 <div className="flex items-center gap-3">
                   {/* Favorite Star */}
                   <button 
-                    onClick={() => toggleFavorite(agent.id)}
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(agent.id); }}
                     className="p-1 transition-colors"
                     title={agent.favorite ? t.favorites.removeFromFavorites : t.favorites.addToFavorites}
                   >
@@ -244,7 +268,7 @@ export default function AgentBoxDashboard() {
                   </button>
                   <Toggle 
                     enabled={agent.active} 
-                    onChange={() => toggleAgent(agent.id)} 
+                    onChange={() => { toggleAgent(agent.id); }} 
                   />
                   <button className="p-1 text-slate-500 hover:text-white transition-colors">
                     <MoreHorizontal size={20} />
@@ -312,9 +336,10 @@ export default function AgentBoxDashboard() {
       
       {/* Enriched Sidebar */}
       <EnrichedSidebar 
-        currentPage={currentPage} 
-        onNavigate={setCurrentPage}
+        currentPage={currentPage === 'agent-detail' ? 'agents' : currentPage} 
+        onNavigate={handleNavigate}
         favoriteAgents={favoriteAgents}
+        onSelectAgent={handleSelectAgent}
       />
 
       {/* Main Content Area */}

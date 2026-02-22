@@ -172,7 +172,7 @@ const fr: Translations = {
     status: "Statut",
     deployChanges: "Déployer",
     soulHint: "Ceci définit la personnalité de l'agent (SOUL.md)",
-    openclawHint: "Chaque onglet correspond à un fichier de config OpenClaw. Personnalité → SOUL.md, Mémoire → MEMORY.md, Outils → TOOLS.md. Les modifications sont déployées en temps réel.",
+    configHint: "Chaque onglet correspond à un fichier de configuration. Personnalité → SOUL.md, Mémoire → MEMORY.md, Outils → TOOLS.md. Les modifications sont déployées en temps réel.",
     memoryFiles: "Fichiers mémoire quotidiens",
     searchMemory: "Rechercher dans la mémoire...",
     memoryHint: "Les fichiers mémoire sont auto-générés chaque jour. MEMORY.md contient les connaissances long-terme. Les fichiers quotidiens (memory/*.md) sont les logs bruts de session.",

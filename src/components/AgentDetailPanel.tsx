@@ -52,12 +52,12 @@ interface AgentDetailProps {
   onBack: () => void;
 }
 
-// --- Mock Data (OpenClaw structure) ---
+// --- Mock Data (Agent config structure) ---
 
 const MOCK_SOUL_CONTENT = (name: string, role: string) => `# SOUL.MD — ${name}
 
 ## Identity
-You are ${name}, a ${role} agent powered by OpenClaw.
+You are ${name}, a ${role} agent.
 You work autonomously to help your human with their daily tasks.
 
 ## Personality
@@ -323,10 +323,10 @@ export default function AgentDetailPanel({ agent, onBack }: AgentDetailProps) {
               </button>
             ))}
 
-            {/* OpenClaw hint */}
+            {/* Config hint */}
             <div className="mt-6 p-3 rounded-xl bg-[#131825] border border-[#1E293B]">
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                {t.agentDetail.openclawHint}
+                {t.agentDetail.configHint}
               </p>
             </div>
           </div>

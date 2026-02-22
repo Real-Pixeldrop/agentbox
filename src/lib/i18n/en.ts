@@ -170,7 +170,7 @@ const en = {
     status: "Status",
     deployChanges: "Deploy Changes",
     soulHint: "This defines your agent's personality (SOUL.md)",
-    openclawHint: "Each tab maps to an OpenClaw config file. Personality → SOUL.md, Memory → MEMORY.md, Tools → TOOLS.md. Changes are deployed to the agent in real-time.",
+    configHint: "Each tab maps to an agent config file. Personality → SOUL.md, Memory → MEMORY.md, Tools → TOOLS.md. Changes are deployed to the agent in real-time.",
     memoryFiles: "Daily Memory Files",
     searchMemory: "Search memories...",
     memoryHint: "Memory files are auto-generated daily. MEMORY.md contains curated long-term knowledge. Daily files (memory/*.md) are raw session logs.",

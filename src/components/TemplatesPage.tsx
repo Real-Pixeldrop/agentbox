@@ -193,7 +193,7 @@ export default function TemplatesPage() {
                       {desc}
                     </p>
 
-                    {/* OpenClaw pre-configuration info */}
+                    {/* Pre-configuration info */}
                     {(template.preconfigures.soul || template.preconfigures.skills.length > 0) && (
                       <div className="mb-4 p-3 rounded-lg bg-[#0D1117] border border-[#1E293B]/50">
                         <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2">{t.templateDetail.preconfigures}</p>

@@ -425,14 +425,24 @@ function WorkspaceBrowser() {
     return <File className="w-4 h-4 text-slate-500" />;
   };
 
-  // Gateway not connected placeholder
+  // Gateway not connected or API not available placeholder
   if (gatewayError) {
     return (
-      <Section title="Workspace" desc={t.settings.storageDesc} icon={FolderOpen}>
+      <Section title="Workspace" desc={t.settings.storageDesc} icon={FolderOpen} badge="Beta">
         <div className="p-8 text-center">
-          <WifiOff className="w-10 h-10 text-slate-600 mx-auto mb-4" />
-          <p className="text-sm font-medium text-slate-400 mb-1">{t.settings.gatewayNotConnected}</p>
-          <p className="text-xs text-slate-600 mb-4">{t.settings.gatewayNotConnectedDesc}</p>
+          {isConnected ? (
+            <>
+              <FolderOpen className="w-10 h-10 text-slate-600 mx-auto mb-4" />
+              <p className="text-sm font-medium text-slate-400 mb-1">{t.settings.workspaceComingSoon || 'Explorateur de fichiers en cours de développement'}</p>
+              <p className="text-xs text-slate-600 mb-4">{t.settings.workspaceComingSoonDesc || 'L\'API de fichiers sera bientôt disponible. Votre gateway est bien connecté.'}</p>
+            </>
+          ) : (
+            <>
+              <WifiOff className="w-10 h-10 text-slate-600 mx-auto mb-4" />
+              <p className="text-sm font-medium text-slate-400 mb-1">{t.settings.gatewayNotConnected}</p>
+              <p className="text-xs text-slate-600 mb-4">{t.settings.gatewayNotConnectedDesc}</p>
+            </>
+          )}
           <button
             onClick={() => loadFiles()}
             className="text-xs text-blue-400 hover:text-blue-300 transition-colors"

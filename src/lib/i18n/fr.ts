@@ -342,6 +342,8 @@ const fr: Translations = {
     storageDesc: "Utilisation du stockage de vos agents",
     gatewayNotConnected: "Gateway non connecté",
     gatewayNotConnectedDesc: "Connectez-vous au gateway pour accéder aux fonctionnalités du workspace.",
+    workspaceComingSoon: "Explorateur de fichiers en cours de développement",
+    workspaceComingSoonDesc: "L'API de fichiers sera bientôt disponible. Votre gateway est bien connecté.",
     endpointUnavailable: "Endpoint non disponible",
     // Save
     saveChanges: "Enregistrer les modifications",

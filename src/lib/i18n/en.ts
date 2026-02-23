@@ -340,6 +340,8 @@ const en = {
     storageDesc: "Your agent's file storage usage",
     gatewayNotConnected: "Gateway not connected",
     gatewayNotConnectedDesc: "Connect to the gateway to access workspace features.",
+    workspaceComingSoon: "File explorer coming soon",
+    workspaceComingSoonDesc: "The files API will be available soon. Your gateway is connected.",
     endpointUnavailable: "Endpoint unavailable",
     // Save
     saveChanges: "Save Changes",

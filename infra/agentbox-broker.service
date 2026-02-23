@@ -1,0 +1,24 @@
+[Unit]
+Description=AgentBox Message Broker
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node /opt/agentbox/infra/message-broker.js
+Restart=on-failure
+RestartSec=5
+Environment=DATA_ROOT=/data
+Environment=BROKER_PORT=18793
+User=root
+Group=root
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/data
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

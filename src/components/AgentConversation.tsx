@@ -115,7 +115,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
       setStreamingText('');
 
       if (isConnected) {
-        send('chat.send', { message: initialMessage, sessionKey }).catch(() => {
+        send('chat.send', { message: initialMessage, sessionKey, idempotencyKey: crypto.randomUUID() }).catch(() => {
           setIsTyping(false);
           const errorMsg: ChatMessage = {
             id: `m${Date.now() + 1}`,
@@ -249,7 +249,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
     if (isConnected) {
       // Live mode: send via gateway with sessionKey
       try {
-        await send('chat.send', { message: messageText, sessionKey });
+        await send('chat.send', { message: messageText, sessionKey, idempotencyKey: crypto.randomUUID() });
       } catch {
         setIsTyping(false);
         const errorMsg: ChatMessage = {

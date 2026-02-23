@@ -552,6 +552,35 @@ const en = {
     pause: "Pause",
     resume: "Resume",
   },
+  // Feedback (Beta)
+  feedback: {
+    report: "Report",
+    title: "Report an Issue",
+    typeBug: "Bug",
+    typeImprovement: "Improvement",
+    typeSuggestion: "Suggestion",
+    descriptionLabel: "Description",
+    descriptionPlaceholder: "Describe the issue or your suggestion...",
+    screenshotLabel: "Screenshot (optional)",
+    screenshotUpload: "Click or drag an image",
+    agentLabel: "Related agent (optional)",
+    noAgent: "None",
+    send: "Send",
+    sending: "Sending...",
+    success: "Thank you for your feedback!",
+    error: "Failed to send feedback. Please try again.",
+    beta: "Beta",
+  },
+  // AI Disclaimer
+  disclaimer: {
+    text: "AI can make mistakes. Verify important information.",
+  },
+  // Attachments
+  attachments: {
+    dropzone: "Drop your file here",
+    attachedImage: "Attached image",
+    pasteImage: "Pasted image",
+  },
   // Toast
   toast: {
     agentCreated: "Agent created successfully!",

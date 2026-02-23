@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Paperclip, 
-  Mic, 
   ArrowUp, 
   AlertCircle, 
   Calendar, 
@@ -13,6 +12,8 @@ import {
   Bot,
   Check,
   Sparkles,
+  X,
+  ImageIcon,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -82,8 +83,12 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
   const [selectedAgent, setSelectedAgent] = useState<HomeAgent | null>(null);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [modelName, setModelName] = useState(activeModel || '');
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
 
@@ -118,11 +123,52 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
     }
   }, [showAgentPicker]);
 
+  // Image attachment handlers
+  const handleFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => setAttachedImage(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) handleFileSelect(file);
+        break;
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (dropZoneRef.current && !dropZoneRef.current.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
   const handleSend = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() && !attachedImage) return;
     
     const message = inputValue.trim();
     setInputValue("");
+    setAttachedImage(null);
 
     // Determine session key
     let sessionKey = 'agent:main:main'; // Default to main agent
@@ -231,8 +277,58 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
         <motion.div 
           variants={itemVariants}
           className="group relative w-full mb-8"
+          ref={dropZoneRef}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
           <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-[22px] blur opacity-0 group-focus-within:opacity-100 transition duration-500" />
+
+          {/* Drag overlay */}
+          <AnimatePresence>
+            {isDragging && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-20 flex items-center justify-center bg-blue-600/10 border-2 border-dashed border-blue-500/50 rounded-[20px] backdrop-blur-sm"
+              >
+                <div className="flex items-center gap-2 text-blue-400 font-medium text-sm">
+                  <ImageIcon className="w-5 h-5" />
+                  {t.attachments.dropzone}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Image preview */}
+          <AnimatePresence>
+            {attachedImage && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="relative mb-2 overflow-hidden"
+              >
+                <div className="relative inline-block ml-4">
+                  <img
+                    src={attachedImage}
+                    alt={t.attachments.attachedImage}
+                    className="max-h-20 rounded-xl border border-slate-700"
+                  />
+                  <button
+                    onClick={() => setAttachedImage(null)}
+                    className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 rounded-full text-white shadow-lg hover:bg-red-400 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  <span className="absolute bottom-1 left-1 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-slate-300">
+                    {t.attachments.attachedImage}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           
           <div className="relative flex items-center bg-[#131825] border border-[#1E293B] rounded-[20px] p-2 shadow-2xl transition-all duration-300 group-focus-within:border-blue-500/50 group-focus-within:shadow-[0_0_30px_rgba(59,130,246,0.1)]">
             
@@ -347,22 +443,34 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder={selectedAgent ? `${t.home.talkTo || 'Talk to'} ${selectedAgent.name}...` : t.home.placeholder}
               className="w-full bg-transparent border-none outline-none py-3 px-2 text-sm sm:text-lg text-slate-100 placeholder:text-slate-600"
             />
 
             <div className="flex items-center gap-1.5 pr-2">
-              <button className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all active:scale-95">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all active:scale-95"
+              >
                 <Paperclip className="w-5 h-5" />
               </button>
-              <button className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all active:scale-95">
-                <Mic className="w-5 h-5" />
-              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                  e.target.value = '';
+                }}
+              />
               <button 
                 onClick={handleSend}
                 className={cn(
                   "p-2.5 rounded-xl transition-all duration-300 active:scale-90",
-                  inputValue.length > 0 
+                  (inputValue.length > 0 || attachedImage)
                     ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:bg-blue-500" 
                     : "bg-slate-800/50 text-slate-500"
                 )}
@@ -390,6 +498,14 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
               <span className="font-medium">{item.text}</span>
             </button>
           ))}
+        </motion.div>
+
+        {/* AI Disclaimer */}
+        <motion.div
+          variants={itemVariants}
+          className="mt-6 text-center"
+        >
+          <p className="text-[10px] text-slate-600">{t.disclaimer.text}</p>
         </motion.div>
 
       </motion.div>

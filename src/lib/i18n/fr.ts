@@ -554,6 +554,35 @@ const fr: Translations = {
     pause: "Pause",
     resume: "Reprendre",
   },
+  // Feedback (Beta)
+  feedback: {
+    report: "Signaler",
+    title: "Signaler un problème",
+    typeBug: "Bug",
+    typeImprovement: "Amélioration",
+    typeSuggestion: "Suggestion",
+    descriptionLabel: "Description",
+    descriptionPlaceholder: "Décrivez le problème ou votre suggestion...",
+    screenshotLabel: "Capture d'écran (optionnel)",
+    screenshotUpload: "Cliquez ou glissez une image",
+    agentLabel: "Agent concerné (optionnel)",
+    noAgent: "Aucun",
+    send: "Envoyer",
+    sending: "Envoi...",
+    success: "Merci pour votre retour !",
+    error: "Échec de l'envoi. Veuillez réessayer.",
+    beta: "Beta",
+  },
+  // AI Disclaimer
+  disclaimer: {
+    text: "L'IA peut se tromper. Vérifiez les informations importantes.",
+  },
+  // Attachments
+  attachments: {
+    dropzone: "Déposez votre fichier ici",
+    attachedImage: "Image jointe",
+    pasteImage: "Image collée",
+  },
   // Toast
   toast: {
     agentCreated: "Agent créé avec succès !",

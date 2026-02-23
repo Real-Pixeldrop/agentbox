@@ -8,10 +8,11 @@ import {
   Settings,
   MessageSquare,
   Paperclip,
-  Mic,
   MoreVertical,
   Coins,
   AlertTriangle,
+  X,
+  ImageIcon,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -71,6 +72,7 @@ interface ChatMessage {
   sender: 'user' | 'agent';
   text: string;
   time: string;
+  image?: string;
 }
 
 // Mock messages - only shown in demo mode (disconnected)
@@ -93,8 +95,12 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
   const [isTyping, setIsTyping] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -283,18 +289,73 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
     }
   }, [sessionKey]);
 
+  // Image attachment handlers
+  const handleFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachedImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) handleFileSelect(file);
+        break;
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set false if we're leaving the drop zone entirely
+    if (dropZoneRef.current && !dropZoneRef.current.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
   const handleSend = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() && !attachedImage) return;
+
+    const messageText = inputValue.trim();
+    const imageData = attachedImage;
+    const displayText = imageData && messageText
+      ? messageText
+      : imageData
+        ? `[${t.attachments.attachedImage}]`
+        : messageText;
 
     const userMsg: ChatMessage = {
       id: `m${Date.now()}`,
       sender: 'user',
-      text: inputValue.trim(),
+      text: displayText,
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      image: imageData || undefined,
     };
     setMessages((prev) => [...prev, userMsg]);
-    const messageText = inputValue.trim();
     setInputValue('');
+    setAttachedImage(null);
     setIsTyping(true);
     setStreamingText('');
 
@@ -449,6 +510,13 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
                         ? "bg-blue-600 text-white rounded-br-md"
                         : "bg-[#1E293B] text-slate-200 rounded-bl-md border border-slate-700/50"
                     )}>
+                      {msg.image && (
+                        <img
+                          src={msg.image}
+                          alt={t.attachments.attachedImage}
+                          className="max-w-full max-h-48 rounded-lg mb-2 object-cover"
+                        />
+                      )}
                       {msg.text}
                       <div className={cn(
                         "text-[10px] mt-1.5",
@@ -497,30 +565,99 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
             <div ref={messagesEndRef} />
           </div>
 
+          {/* AI Disclaimer */}
+          <div className="text-center py-1.5">
+            <p className="text-[10px] text-slate-600">{t.disclaimer.text}</p>
+          </div>
+
           {/* Input */}
-          <div className="border-t border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md p-4">
+          <div
+            ref={dropZoneRef}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className="relative border-t border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md p-4"
+          >
+            {/* Drag overlay */}
+            <AnimatePresence>
+              {isDragging && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-10 flex items-center justify-center bg-blue-600/10 border-2 border-dashed border-blue-500/50 rounded-xl backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-2 text-blue-400 font-medium text-sm">
+                    <ImageIcon className="w-5 h-5" />
+                    {t.attachments.dropzone}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Image preview */}
+            <AnimatePresence>
+              {attachedImage && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-3 overflow-hidden"
+                >
+                  <div className="relative inline-block">
+                    <img
+                      src={attachedImage}
+                      alt={t.attachments.attachedImage}
+                      className="max-h-20 rounded-lg border border-slate-700"
+                    />
+                    <button
+                      onClick={() => setAttachedImage(null)}
+                      className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 rounded-full text-white shadow-lg hover:bg-red-400 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <span className="absolute bottom-1 left-1 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-slate-300">
+                      {t.attachments.attachedImage}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="flex items-center gap-3 bg-[#131825] border border-slate-800 rounded-xl px-4 py-2 focus-within:border-blue-500/50 transition-colors">
-              <button className="p-1.5 text-slate-500 hover:text-white transition-colors">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-1.5 text-slate-500 hover:text-white transition-colors"
+              >
                 <Paperclip className="w-5 h-5" />
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                  e.target.value = '';
+                }}
+              />
               <input
                 ref={inputRef}
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder={t.conversation.typeMessage}
                 className="flex-1 bg-transparent border-none outline-none text-sm text-slate-200 placeholder:text-slate-600"
               />
-              <button className="p-1.5 text-slate-500 hover:text-white transition-colors">
-                <Mic className="w-5 h-5" />
-              </button>
               <button
                 onClick={handleSend}
-                disabled={!inputValue.trim()}
+                disabled={!inputValue.trim() && !attachedImage}
                 className={cn(
                   "p-2 rounded-lg transition-all",
-                  inputValue.trim()
+                  (inputValue.trim() || attachedImage)
                     ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20"
                     : "bg-slate-800 text-slate-600"
                 )}

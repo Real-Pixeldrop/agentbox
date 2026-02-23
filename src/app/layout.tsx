@@ -3,6 +3,7 @@ import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
 import { GatewayProvider } from "@/lib/GatewayContext";
 import { AuthProvider } from "@/lib/AuthContext";
+import BetaFeedback from "@/components/BetaFeedback";
 
 export const metadata: Metadata = {
   title: "AgentBox - AI Agent Management Platform",
@@ -17,6 +18,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <I18nProvider>
             <GatewayProvider>
               {children}
+              {/* Beta feedback button — remove after beta */}
+              <BetaFeedback />
             </GatewayProvider>
           </I18nProvider>
         </AuthProvider>

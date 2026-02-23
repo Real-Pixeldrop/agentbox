@@ -221,13 +221,13 @@ export class GatewayClient {
         minProtocol: 3,
         maxProtocol: 3,
         client: {
-          id: 'agentbox-webchat',
+          id: 'webchat-ui',
           version: '1.0.0',
           platform: 'web',
           mode: 'webchat',
           instanceId: CLIENT_INSTANCE_ID,
         },
-        role: 'operator.admin',
+        role: 'operator',
         scopes: ['operator.admin', 'operator.approvals', 'operator.pairing'],
         caps: [],
         auth: {

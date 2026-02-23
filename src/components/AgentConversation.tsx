@@ -204,48 +204,55 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
   const handleStreamEvent = useCallback((event: GatewayEvent) => {
     const { type, data } = event;
 
-    // Debug: log all gateway events to diagnose streaming issues
-    console.log('[stream]', type, data);
-
-    // Only handle "chat" events
-    if (type !== 'chat') return;
-
-    const kind = data.kind as string | undefined;
     const eventSessionKey = data.sessionKey as string | undefined;
 
     // Only process events for our current session
-    // Use startsWith for flexible matching (e.g. "agent:my-agent:main" vs "agent:my-agent:main:sub")
     if (eventSessionKey && eventSessionKey !== sessionKey && !eventSessionKey.startsWith(sessionKey)) return;
 
-    switch (kind) {
-      case 'chunk': {
-        // data.text can be a plain string (most common for chunks), an object {type: "text", text: "..."},
-        // or an array of content blocks. Handle all cases.
-        const rawText = data.text;
-        let text = '';
-        if (typeof rawText === 'string') {
-          text = rawText;
-        } else if (rawText && typeof rawText === 'object' && 'text' in rawText && typeof (rawText as Record<string, unknown>).text === 'string') {
-          text = (rawText as Record<string, unknown>).text as string;
-        } else if (Array.isArray(rawText)) {
-          text = extractText(rawText);
-        } else if (rawText !== undefined && rawText !== null) {
-          // Last resort: try extractText which handles all cases
-          text = extractText(rawText);
-        }
-        if (text) {
+    // Gateway sends two event types for streaming:
+    // 1. "agent" events with stream="assistant" → contains data.delta (incremental text)
+    // 2. "chat" events with state="delta"|"final" → contains message.content (full text so far)
+    // We use "agent" events for real-time streaming (delta by delta) and "chat" state="final" to finalize.
+
+    if (type === 'agent') {
+      const stream = data.stream as string | undefined;
+      const agentData = data.data as Record<string, unknown> | undefined;
+
+      if (stream === 'assistant' && agentData) {
+        const delta = agentData.delta as string | undefined;
+        if (delta) {
           setIsTyping(true);
-          setStreamingText((prev) => prev + text);
+          setStreamingText((prev) => prev + delta);
         }
-        break;
       }
-      case 'final': {
-        // Finalize the streaming message with the full response text
-        // Use the final text if provided, otherwise use whatever was streamed
-        const finalText = extractText(data.text ?? '');
+
+      if (stream === 'lifecycle' && agentData) {
+        const phase = agentData.phase as string | undefined;
+        if (phase === 'error') {
+          setIsTyping(false);
+          setStreamingText('');
+          const errorText = (agentData.error as string) || 'Unknown error';
+          const errorMsg: ChatMessage = {
+            id: `m${Date.now()}`,
+            sender: 'agent',
+            text: `⚠️ ${errorText}`,
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          };
+          setMessages((msgs) => [...msgs, errorMsg]);
+        }
+      }
+      return;
+    }
+
+    if (type === 'chat') {
+      const state = data.state as string | undefined;
+
+      if (state === 'final') {
+        // Extract text from message.content array [{type: "text", text: "..."}]
+        const message = data.message as Record<string, unknown> | undefined;
+        const finalText = message ? extractText(message.content) : '';
 
         setStreamingText((prevStreamed) => {
-          // Use final text if available, otherwise fall back to accumulated streamed text
           const msgText = finalText || prevStreamed;
           if (msgText) {
             const finalMsg: ChatMessage = {
@@ -256,15 +263,15 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
             };
             setMessages((msgs) => [...msgs, finalMsg]);
           }
-          return ''; // Clear streaming text
+          return '';
         });
         setIsTyping(false);
-        break;
       }
-      case 'error': {
+
+      if (state === 'error') {
         setIsTyping(false);
         setStreamingText('');
-        const errorText = typeof data.error === 'string' ? data.error : typeof data.text === 'string' ? data.text : 'Unknown error';
+        const errorText = typeof data.error === 'string' ? data.error : 'Unknown error';
         const errorMsg: ChatMessage = {
           id: `m${Date.now()}`,
           sender: 'agent',
@@ -272,7 +279,6 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
           time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
         };
         setMessages((msgs) => [...msgs, errorMsg]);
-        break;
       }
     }
   }, [sessionKey]);

@@ -5,15 +5,18 @@ import {
   Search,
   Bell,
   Plus,
-  MoreHorizontal,
+  Settings as SettingsIcon,
   Clock,
-  Pencil,
   Star,
   Coins,
   Users,
   X,
   Bot,
   Menu,
+  Hash,
+  MessageSquare,
+  Mail,
+  MessageCircle,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -38,30 +41,15 @@ import SkillsPage from '@/components/SkillsPage';
 import ActivityPage from '@/components/ActivityPage';
 import NotificationsPanel from '@/components/NotificationsPanel';
 import Toast from '@/components/Toast';
+import AgentSettingsPanel from '@/components/AgentSettingsPanel';
+import AgentAvatar from '@/components/AgentAvatar';
+import ScheduledActionsPage from '@/components/ScheduledActionsPage';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 // --- Sub-components ---
-
-const ChannelPill = ({ type }: { type: string }) => {
-  const styles: Record<string, string> = {
-    WhatsApp: "bg-[#22C55E]/10 text-[#22C55E]",
-    Email: "bg-[#3B82F6]/10 text-[#3B82F6]",
-    Telegram: "bg-[#06B6D4]/10 text-[#06B6D4]",
-    Discord: "bg-[#5865F2]/10 text-[#5865F2]",
-    Slack: "bg-[#E01E5A]/10 text-[#E01E5A]",
-    Signal: "bg-[#3A76F0]/10 text-[#3A76F0]",
-    iMessage: "bg-[#34C759]/10 text-[#34C759]",
-  };
-
-  return (
-    <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold tracking-wide", styles[type])}>
-      {type}
-    </span>
-  );
-};
 
 const Toggle = ({ enabled, onChange }: { enabled: boolean; onChange: () => void }) => (
   <button
@@ -177,6 +165,7 @@ export default function AgentBoxDashboard() {
   const [currentSessionKey, setCurrentSessionKey] = useState<string>('agent:main:main');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [settingsPanelAgent, setSettingsPanelAgent] = useState<AgentData | null>(null);
   const { t } = useI18n();
   const { isConnected } = useGateway();
   const { agents: supabaseAgents, loading: agentsLoading, createAgent, deleteAgent, updateAgentStatus, fetchAgents } = useAgents();
@@ -402,6 +391,29 @@ export default function AgentBoxDashboard() {
     return String(n);
   };
 
+  const getChannelIcon = (channel: string) => {
+    const icons: Record<string, React.ElementType> = {
+      WhatsApp: MessageCircle,
+      Email: Mail,
+      Telegram: MessageSquare,
+      Discord: Hash,
+      Slack: Hash,
+      Signal: MessageSquare,
+      iMessage: MessageSquare,
+    };
+    return icons[channel] || MessageSquare;
+  };
+
+  const channelColors: Record<string, string> = {
+    WhatsApp: 'text-[#22C55E]',
+    Email: 'text-[#3B82F6]',
+    Telegram: 'text-[#06B6D4]',
+    Discord: 'text-[#5865F2]',
+    Slack: 'text-[#E01E5A]',
+    Signal: 'text-[#3A76F0]',
+    iMessage: 'text-[#34C759]',
+  };
+
   const renderContent = () => {
     // Agent conversation view
     if (currentPage === 'agent-conversation' && selectedAgent) {
@@ -481,6 +493,13 @@ export default function AgentBoxDashboard() {
         return <SkillsPage agents={displayAgents.map(a => ({ id: a.id, name: a.name, photo: a.photo }))} />;
       case 'activity':
         return <ActivityPage />;
+      case 'scheduled-actions':
+        return (
+          <ScheduledActionsPage
+            agents={displayAgents.map(a => ({ id: a.id, name: a.name, photo: a.photo, active: a.active, sessionKey: a.sessionKey }))}
+            onSelectAgent={(id) => handleSelectAgent(String(id))}
+          />
+        );
       case 'agents':
       default:
         return renderAgentsPage();
@@ -605,45 +624,25 @@ export default function AgentBoxDashboard() {
               <div
                 key={agent.id}
                 onClick={() => handleSelectAgent(String(agent.id))}
-                className="group relative bg-[#131825] border border-slate-800/60 rounded-xl p-6 hover:border-slate-700 hover:shadow-2xl hover:shadow-black/40 transition-all duration-300 cursor-pointer"
+                className="group relative bg-[#131825] border border-slate-800/60 rounded-xl p-6 hover:border-slate-700 hover:shadow-2xl hover:shadow-black/40 transition-all duration-300 cursor-pointer overflow-hidden"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      {agent.photo ? (
-                        <img
-                          src={agent.photo}
-                          alt={agent.name}
-                          className={cn(
-                            "w-12 h-12 rounded-full border-2 transition-all duration-500 object-cover",
-                            agent.active ? "border-blue-500/50 scale-105" : "border-slate-700 grayscale"
-                          )}
-                        />
-                      ) : (
-                        <div className={cn(
-                          "w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-bold bg-gradient-to-br from-blue-500 to-indigo-600 text-white transition-all duration-500",
-                          agent.active ? "border-blue-500/50 scale-105" : "border-slate-700 grayscale"
-                        )}>
-                          {agent.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div
-                        className={cn(
-                          "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#131825]",
-                          agent.active
-                            ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"
-                            : "bg-slate-600"
-                        )}
-                      />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <AgentAvatar
+                      name={agent.name}
+                      photo={agent.photo}
+                      size="md"
+                      active={agent.active}
+                      showStatus
+                    />
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors truncate">
                         {agent.name}
                       </h3>
-                      <p className="text-[13px] text-slate-400 font-medium">{agent.role}</p>
+                      <p className="text-[13px] text-slate-400 font-medium truncate">{agent.role}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFavorite(agent.id); }}
                       className="p-1 transition-colors"
@@ -660,141 +659,102 @@ export default function AgentBoxDashboard() {
                       />
                     </button>
                     <Toggle enabled={agent.active} onChange={() => { toggleAgent(agent.id); }} />
-                    <div className="relative">
-                      <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          setAgentMenuId(agentMenuId === agent.id ? null : agent.id); 
-                        }}
-                        className="p-1 text-slate-500 hover:text-white transition-colors"
-                      >
-                        <MoreHorizontal size={20} />
-                      </button>
-                      
-                      {/* Agent Menu Dropdown */}
-                      {agentMenuId === agent.id && (
-                        <div className="absolute right-0 top-8 w-48 bg-[#131825] border border-slate-700 rounded-lg shadow-xl z-20 py-2">
-                          <button
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              setSelectedAgentId(agent.id); 
-                              setShowAgentDetail(true); 
-                              setCurrentPage('agent-detail'); 
-                              setAgentMenuId(null);
-                            }}
-                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white transition-colors"
-                          >
-                            <Pencil size={16} />
-                            Modifier
-                          </button>
-                          
-                          <button
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              console.log('Assign to team:', agent.id); 
-                              setAgentMenuId(null);
-                            }}
-                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white transition-colors"
-                          >
-                            <Users size={16} />
-                            Assigner à une équipe
-                          </button>
-                          
-                          {/* Hide delete button for "main" agent */}
-                          {(() => {
-                            // Check if this is the main agent
-                            const supabaseAgent = supabaseAgents.find(a => a.id === agent.supabaseId);
-                            const isMainAgent = supabaseAgent?.gateway_agent_id === 'main';
-                            
-                            if (isMainAgent) {
-                              return null;
-                            }
-                            
-                            return (
-                              <button
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agent.name} ?`)) {
-                                    handleDeleteAgent(agent.id);
-                                  }
-                                  setAgentMenuId(null);
-                                }}
-                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-                              >
-                                <X size={16} />
-                                Supprimer l&apos;agent
-                              </button>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setSettingsPanelAgent(agent);
+                      }}
+                      className="p-1.5 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                      title={t.conversation.agentSettings}
+                    >
+                      <SettingsIcon size={18} />
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 mb-4 min-h-[24px]">
+                {/* Channels row */}
+                <div className="flex items-center gap-3 mb-3">
                   {agent.channels.length > 0 ? (
-                    agent.channels.map((channel) => (
-                      <ChannelPill key={channel} type={channel} />
-                    ))
+                    <div className="flex items-center gap-1.5">
+                      {agent.channels.map((channel) => {
+                        const Icon = getChannelIcon(channel);
+                        return (
+                          <div
+                            key={channel}
+                            className={cn(
+                              "w-7 h-7 rounded-lg flex items-center justify-center bg-slate-800/80 border border-slate-700/50",
+                              channelColors[channel]
+                            )}
+                            title={channel}
+                          >
+                            <Icon size={14} />
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
-                    <span className="text-[11px] text-slate-600 font-medium italic">{t.agents.noChannels}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSettingsPanelAgent(agent); }}
+                      className="flex items-center gap-1.5 text-[11px] text-slate-600 hover:text-blue-400 transition-colors"
+                    >
+                      <Plus size={12} />
+                      <span className="font-medium">{t.agents.noChannels}</span>
+                    </button>
                   )}
                 </div>
 
-                {/* Gateway status indicator for real agents */}
-                {agent.supabaseId && (
+                {/* Team row */}
+                <div className="flex items-center gap-2 mb-3">
+                  <Users size={13} className="text-slate-500 flex-shrink-0" />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSettingsPanelAgent(agent); }}
+                    className="flex items-center gap-1.5 text-[12px] text-slate-500 hover:text-blue-400 transition-colors"
+                  >
+                    <span>{t.agents.noTeam}</span>
+                    <Plus size={12} />
+                  </button>
+                </div>
+
+                {/* Schedule — only show if configured */}
+                {agent.schedule && agent.schedule !== 'Not configured' && (
                   <div className="flex items-center gap-2 mb-3">
-                    <div className={cn(
-                      "w-2 h-2 rounded-full",
-                      isConnected ? "bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]" : "bg-amber-500"
-                    )} />
-                    <span className="text-[11px] text-slate-500">
-                      {isConnected ? 'Gateway connected' : 'Gateway offline — demo mode'}
-                    </span>
+                    <Clock size={13} className="text-slate-500 flex-shrink-0" />
+                    <span className="text-[12px] text-slate-400 truncate">{agent.schedule}</span>
                   </div>
                 )}
 
                 {/* Token cost info */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex items-center gap-1.5">
-                    <Coins size={13} className="text-amber-400/70" />
-                    <span className="text-[12px] text-slate-400">
-                      {formatTokens(agent.tokensToday)} {t.agents.tokensToday} · ${agent.costToday.toFixed(2)} {t.agents.today}
-                    </span>
+                {agent.tokensToday > 0 && (
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Coins size={13} className="text-amber-400/70" />
+                      <span className="text-[12px] text-slate-400">
+                        {formatTokens(agent.tokensToday)} {t.agents.tokensToday} · ${agent.costToday.toFixed(2)} {t.agents.today}
+                      </span>
+                    </div>
+                    <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden min-w-0">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          agent.tokensToday / agent.tokenLimit > 0.8 ? "bg-amber-500" : "bg-blue-500/60"
+                        )}
+                        style={{ width: `${Math.min((agent.tokensToday / agent.tokenLimit) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-600 flex-shrink-0">{t.agents.limit}: {formatTokens(agent.tokenLimit)}</span>
                   </div>
-                  <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        agent.tokensToday / agent.tokenLimit > 0.8 ? "bg-amber-500" : "bg-blue-500/60"
-                      )}
-                      style={{ width: `${Math.min((agent.tokensToday / agent.tokenLimit) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-slate-600">{t.agents.limit}: {formatTokens(agent.tokenLimit)}</span>
-                </div>
+                )}
 
-                <div className="flex items-center gap-2 mb-4 group/schedule">
-                  <Clock size={13} className="text-slate-500" />
-                  <span className="text-[12px] text-slate-400">{agent.schedule}</span>
-                  <button className="p-1 rounded-md text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 opacity-0 group-hover/schedule:opacity-100 transition-all">
-                    <Pencil size={12} />
-                  </button>
-                </div>
-
-                <div className="pt-4 border-t border-slate-800/50 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "text-[12px] font-medium",
-                        agent.active ? "text-green-500" : "text-slate-500"
-                      )}
-                    >
-                      {agent.active ? t.agents.active : t.agents.inactive}
-                    </span>
-                  </div>
-                  <span className="text-[12px] text-slate-500">
+                <div className="pt-3 border-t border-slate-800/50 flex items-center justify-between">
+                  <span
+                    className={cn(
+                      "text-[12px] font-medium",
+                      agent.active ? "text-green-500" : "text-slate-500"
+                    )}
+                  >
+                    {agent.active ? t.agents.active : t.agents.inactive}
+                  </span>
+                  <span className="text-[12px] text-slate-500 truncate ml-2">
                     {t.agents.lastActive}:{" "}
                     <span className="text-slate-400 font-medium">{agent.lastActive}</span>
                   </span>
@@ -853,6 +813,8 @@ export default function AgentBoxDashboard() {
         currentPage={
           currentPage === 'agent-detail' || currentPage === 'agent-conversation'
             ? 'agents'
+            : currentPage === 'scheduled-actions'
+            ? 'scheduled-actions'
             : currentPage
         }
         onNavigate={handleNavigate}
@@ -873,6 +835,24 @@ export default function AgentBoxDashboard() {
           onLaunch={handleLaunchAgent}
           onAgentCreated={handleAgentCreated}
           createAgent={user ? createAgent : undefined}
+        />
+      )}
+
+      {/* Agent Settings Panel from cards */}
+      {settingsPanelAgent && (
+        <AgentSettingsPanel
+          open={!!settingsPanelAgent}
+          onClose={() => setSettingsPanelAgent(null)}
+          agent={{
+            id: settingsPanelAgent.id,
+            name: settingsPanelAgent.name,
+            role: settingsPanelAgent.role,
+            photo: settingsPanelAgent.photo,
+            active: settingsPanelAgent.active,
+            channels: settingsPanelAgent.channels,
+            schedule: settingsPanelAgent.schedule,
+          }}
+          sessionKey={settingsPanelAgent.sessionKey || `agent:${settingsPanelAgent.name.toLowerCase().replace(/\s+/g, '-')}:main`}
         />
       )}
 

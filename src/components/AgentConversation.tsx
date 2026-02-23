@@ -512,15 +512,30 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
               </div>
             )}
 
-            {/* Empty state for connected mode with no history */}
+            {/* Welcome message for empty conversation */}
             {historyLoaded && messages.length === 0 && isConnected && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 bg-[#131825] rounded-full flex items-center justify-center mb-4 border border-slate-800">
-                  <MessageSquare className="w-7 h-7 text-slate-600" />
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-end gap-2"
+              >
+                <AgentAvatar name={agent.name} photo={agent.photo} size="xs" />
+                <div className="bg-[#1E293B] border border-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3 max-w-[70%]">
+                  <p className="text-sm text-slate-200 leading-relaxed">
+                    {(() => {
+                      const userName = user?.user_metadata?.full_name?.split(' ')[0] || '';
+                      const template = userName
+                        ? t.conversation.welcomeMessage
+                        : t.conversation.welcomeMessageNoName;
+                      return template
+                        .replace('{name}', userName)
+                        .replace('{agent}', agent.name)
+                        .replace('{role}', agent.role);
+                    })()}
+                  </p>
                 </div>
-                <p className="text-slate-500 text-sm mb-1">No messages yet</p>
-                <p className="text-slate-600 text-xs">Send a message to start the conversation</p>
-              </div>
+              </motion.div>
             )}
 
             <AnimatePresence initial={false}>

@@ -141,18 +141,21 @@ export function useAgents() {
     if (insertErr) throw insertErr;
 
     // 1b. Provision user workspace + seed default files on VPS
+    // IMPORTANT: Write SOUL.md BEFORE sending bootstrap prompt so the agent reads the correct language
+    // Use the Supabase UUID as VPS agent ID (consistent with useAgentFiles which uses supabaseAgentId)
+    const vpsAgentId = (newAgent as Agent).id;
     try {
       await vpsProvisionUser(user.id);
-      await vpsCreateDefaultFiles(agentId, soulContent);
+      await vpsCreateDefaultFiles(vpsAgentId, soulContent);
       // Also create skill files
       for (const skillId of agentData.skills) {
-        await vpsWriteFile(agentId, `skills/${skillId}/SKILL.md`, `# ${skillId}\n\nSkill: ${skillId}\n`);
+        await vpsWriteFile(vpsAgentId, `skills/${skillId}/SKILL.md`, `# ${skillId}\n\nSkill: ${skillId}\n`);
       }
     } catch (vpsErr) {
       console.warn('VPS workspace provisioning failed (non-fatal):', vpsErr);
     }
 
-    // 2. If gateway is connected, deploy to gateway
+    // 2. If gateway is connected, also write SOUL.md via gateway to ensure the running agent picks it up
     if (isConnected) {
       try {
         const config = await send<Record<string, unknown>>('config.get', {});
@@ -178,6 +181,13 @@ export function useAgents() {
         };
 
         await send('config.apply', newConfig);
+
+        // Write SOUL.md to gateway workspace so the running agent reads the correct language immediately
+        try {
+          await send('files.write', { sessionKey, path: 'SOUL.md', content: soulContent });
+        } catch {
+          // Non-critical: VPS already has it
+        }
       } catch (gwErr) {
         // Gateway deploy failed — agent is still saved in Supabase
         // Update status to reflect gateway issue
@@ -190,11 +200,12 @@ export function useAgents() {
     setAgents(prev => [agent, ...prev]);
 
     // Send bootstrap prompt to configure the agent with initial context
+    // This is sent AFTER SOUL.md is written to both VPS and gateway
     if (isConnected) {
       try {
         const bootstrapPrompt = lang === 'FR'
-          ? `Tu es ${agentData.name}. Ton rôle : ${agentData.description || 'assistant IA'}. Langue : FR. ${agentData.industry ? `Secteur : ${agentData.industry}.` : ''} ${agentData.skills.length > 0 ? `Tes compétences : ${agentData.skills.join(', ')}.` : ''} ${agentData.specialInstructions ? `Règles : ${agentData.specialInstructions}` : ''} Confirme que tu es prêt.`
-          : `You are ${agentData.name}. Your role: ${agentData.description || 'AI assistant'}. Language: EN. ${agentData.industry ? `Industry: ${agentData.industry}.` : ''} ${agentData.skills.length > 0 ? `Your skills: ${agentData.skills.join(', ')}.` : ''} ${agentData.specialInstructions ? `Rules: ${agentData.specialInstructions}` : ''} Confirm you are ready.`;
+          ? `[SYSTÈME] Tu es ${agentData.name}. Tu réponds TOUJOURS en français, c'est une règle absolue. Ton rôle : ${agentData.description || 'assistant IA'}. ${agentData.industry ? `Secteur : ${agentData.industry}.` : ''} ${agentData.skills.length > 0 ? `Tes compétences : ${agentData.skills.join(', ')}.` : ''} ${agentData.specialInstructions ? `Instructions : ${agentData.specialInstructions}` : ''} Lis ton fichier SOUL.md pour connaître ton identité complète. Confirme que tu es prêt en français.`
+          : `[SYSTEM] You are ${agentData.name}. You ALWAYS respond in English, this is an absolute rule. Your role: ${agentData.description || 'AI assistant'}. ${agentData.industry ? `Industry: ${agentData.industry}.` : ''} ${agentData.skills.length > 0 ? `Your skills: ${agentData.skills.join(', ')}.` : ''} ${agentData.specialInstructions ? `Instructions: ${agentData.specialInstructions}` : ''} Read your SOUL.md file for your full identity. Confirm you are ready in English.`;
 
         await send('chat.send', {
           message: bootstrapPrompt.replace(/\s+/g, ' ').trim(),

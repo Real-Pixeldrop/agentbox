@@ -231,6 +231,10 @@ const fr: Translations = {
     thinking: "Réflexion...",
     demoBanner: "Mode démo — Connectez le gateway pour des agents en direct",
     loadingHistory: "Chargement de l'historique...",
+    welcomeMessage: "Bonjour {name} ! Je suis {agent}, {role}. Comment puis-je vous aider aujourd'hui ?",
+    welcomeMessageNoName: "Bonjour ! Je suis {agent}, {role}. Comment puis-je vous aider aujourd'hui ?",
+    noMessagesYet: "Aucun message pour l'instant",
+    sendFirstMessage: "Envoyez un message pour démarrer la conversation",
   },
   // Channel configuration
   channelConfig: {

@@ -42,7 +42,11 @@ const labels = {
     signInLink: 'Se connecter',
     orContinueWith: 'Ou continuer avec',
     google: 'Google',
-    terms: 'En continuant, vous acceptez nos Conditions d\'utilisation et Politique de confidentialité.',
+    termsPrefix: 'En continuant, vous acceptez nos ',
+    termsLink: 'Conditions d\'utilisation',
+    termsAnd: ' et ',
+    privacyLink: 'Politique de confidentialité',
+    termsSuffix: '.',
     passwordMin: 'Le mot de passe doit contenir au moins 6 caractères',
     accountCreated: 'Compte créé ! Vérifiez votre email pour confirmer.',
     unexpectedError: 'Une erreur inattendue est survenue',
@@ -73,7 +77,11 @@ const labels = {
     signInLink: 'Sign in',
     orContinueWith: 'Or continue with',
     google: 'Google',
-    terms: 'By continuing, you agree to our Terms of Service and Privacy Policy.',
+    termsPrefix: 'By continuing, you agree to our ',
+    termsLink: 'Terms of Service',
+    termsAnd: ' and ',
+    privacyLink: 'Privacy Policy',
+    termsSuffix: '.',
     passwordMin: 'Password must be at least 6 characters',
     accountCreated: 'Account created! Check your email to confirm.',
     unexpectedError: 'An unexpected error occurred',
@@ -456,7 +464,19 @@ export default function AuthPage() {
           </div>
 
           <p className="text-center text-xs text-slate-600 mt-6">
-            {t.terms}
+            {t.termsPrefix}
+            <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-300 transition-colors">
+              {t.termsLink}
+            </a>
+            {t.termsAnd}
+            <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-300 transition-colors">
+              {t.privacyLink}
+            </a>
+            {t.termsSuffix}
+            {' · '}
+            <a href="/legal/dpa" target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-300 transition-colors">
+              DPA
+            </a>
           </p>
         </div>
       </div>

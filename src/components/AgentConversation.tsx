@@ -25,6 +25,31 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Extract text from gateway message content.
+ * Content can be a string, an array of content blocks [{type: "text", text: "..."}],
+ * or an object with a text property.
+ */
+function extractText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((block) => {
+        if (typeof block === 'string') return block;
+        if (block && typeof block === 'object' && 'text' in block && typeof block.text === 'string') {
+          return block.text;
+        }
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n');
+  }
+  if (content && typeof content === 'object' && 'text' in content && typeof (content as Record<string, unknown>).text === 'string') {
+    return (content as Record<string, unknown>).text as string;
+  }
+  return String(content ?? '');
+}
+
 interface AgentConversationProps {
   agent: {
     id: number;
@@ -155,14 +180,14 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
 
   const loadHistory = useCallback(async () => {
     try {
-      const result = await send<{ messages?: Array<{ role: string; content: string; timestamp?: string }> }>('chat.history', {
+      const result = await send<{ messages?: Array<{ role: string; content: unknown; timestamp?: string }> }>('chat.history', {
         sessionKey,
       });
       if (result?.messages && result.messages.length > 0) {
         const parsed: ChatMessage[] = result.messages.map((msg, i) => ({
           id: `h${i}`,
           sender: msg.role === 'user' ? 'user' as const : 'agent' as const,
-          text: msg.content,
+          text: extractText(msg.content),
           time: msg.timestamp
             ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
             : '',
@@ -190,7 +215,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
 
     switch (kind) {
       case 'chunk': {
-        const text = (data.text || '') as string;
+        const text = extractText(data.text || '');
         if (text) {
           setStreamingText((prev) => prev + text);
         }
@@ -198,7 +223,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
       }
       case 'final': {
         // Finalize the streaming message with the full response text
-        const finalText = (data.text || '') as string;
+        const finalText = extractText(data.text || '');
         setStreamingText(() => {
           const msgText = finalText || '';
           if (msgText) {

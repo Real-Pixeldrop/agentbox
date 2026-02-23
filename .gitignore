@@ -36,3 +36,4 @@ supabase/.temp/
 # Vercel
 .vercel
 >>>>>>> 42d93b34626a14577d1c19af28f26c774df72f28
+infra/telegram_bot_tokens.json

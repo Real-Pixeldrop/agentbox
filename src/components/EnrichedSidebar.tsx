@@ -104,7 +104,13 @@ const AgentLink = ({ name, avatarUrl, isAgentActive, onClick }: { name: string; 
   >
     <div className="relative h-6 w-6 shrink-0">
       <div className="h-6 w-6 overflow-hidden rounded-full ring-1 ring-slate-700 group-hover:ring-slate-500 transition-all">
-        <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[10px] font-bold">
+            {name.charAt(0).toUpperCase()}
+          </div>
+        )}
       </div>
       {isAgentActive && (
         <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#0F1219] shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
@@ -234,7 +240,13 @@ export default function EnrichedSidebar({
               {recentAgents.map((agent, i) => (
                 <div key={i} className="flex items-center justify-between group cursor-pointer" onClick={() => onNavigate('agents')}>
                   <div className="flex items-center gap-3">
-                    <img src={agent.avatar} alt="" className="h-5 w-5 rounded-full grayscale group-hover:grayscale-0 transition-all" />
+                    {agent.avatar ? (
+                      <img src={agent.avatar} alt="" className="h-5 w-5 rounded-full grayscale group-hover:grayscale-0 transition-all" />
+                    ) : (
+                      <div className="h-5 w-5 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[8px] font-bold">
+                        {agent.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <span className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors">{agent.name}</span>
                   </div>
                   <span className="text-[10px] text-slate-700 font-mono">{agent.time}</span>

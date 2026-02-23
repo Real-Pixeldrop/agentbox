@@ -228,7 +228,13 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
               >
                 {selectedAgent ? (
                   <>
-                    <img src={selectedAgent.photo} alt="" className="w-5 h-5 rounded-full object-cover" />
+                    {selectedAgent.photo ? (
+                      <img src={selectedAgent.photo} alt="" className="w-5 h-5 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[9px] font-bold">
+                        {selectedAgent.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <span className="font-medium max-w-[100px] truncate">{selectedAgent.name}</span>
                   </>
                 ) : (
@@ -286,7 +292,13 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
                                 : "text-slate-300 hover:bg-slate-800/50"
                             )}
                           >
-                            <img src={agent.photo} alt="" className="w-7 h-7 rounded-full object-cover border border-slate-700" />
+                            {agent.photo ? (
+                              <img src={agent.photo} alt="" className="w-7 h-7 rounded-full object-cover border border-slate-700" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-bold border border-slate-700">
+                                {agent.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
                             <span className="flex-1 text-left font-medium truncate">{agent.name}</span>
                             {selectedAgent?.id === agent.id && <Check className="w-4 h-4 text-blue-400" />}
                           </button>

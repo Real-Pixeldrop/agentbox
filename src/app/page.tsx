@@ -95,7 +95,41 @@ interface AgentData {
   sessionKey?: string;
 }
 
-// Removed MOCK_AGENTS and MOCK_NOTIFICATIONS - no more demo/fake data
+// Demo agents shown when gateway is not connected
+const DEMO_AGENTS: AgentData[] = [
+  {
+    id: 1,
+    name: 'Claudia',
+    role: 'Assistante personnelle',
+    status: 'Active',
+    channels: ['iMessage', 'WhatsApp', 'Email'],
+    active: true,
+    lastActive: 'Active now',
+    photo: '',
+    schedule: 'Mon-Fri 9am-6pm',
+    favorite: true,
+    tokensToday: 2847,
+    costToday: 0.42,
+    tokenLimit: 5000,
+    sessionKey: 'agent:claudia:main',
+  },
+  {
+    id: 2,
+    name: 'Support Bot',
+    role: 'Service client',
+    status: 'Active',
+    channels: ['Discord', 'Slack'],
+    active: true,
+    lastActive: '5min ago',
+    photo: '',
+    schedule: '24/7',
+    favorite: false,
+    tokensToday: 1203,
+    costToday: 0.18,
+    tokenLimit: 5000,
+    sessionKey: 'agent:support:main',
+  },
+];
 
 // --- Main ---
 
@@ -125,10 +159,10 @@ export default function AgentBoxDashboard() {
     if (isConnected) {
       loadRealAgents();
     } else {
-      // When disconnected from gateway: show empty state with loading skeletons
-      setAgents([]);
+      // When disconnected: show demo agents
+      setAgents(DEMO_AGENTS);
       setNotifications([]);
-      setAgentsLoaded(false); // Show loading state when not connected
+      setAgentsLoaded(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
@@ -504,14 +538,23 @@ export default function AgentBoxDashboard() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      <img
-                        src={agent.photo}
-                        alt={agent.name}
-                        className={cn(
-                          "w-12 h-12 rounded-full border-2 transition-all duration-500 object-cover",
+                      {agent.photo ? (
+                        <img
+                          src={agent.photo}
+                          alt={agent.name}
+                          className={cn(
+                            "w-12 h-12 rounded-full border-2 transition-all duration-500 object-cover",
+                            agent.active ? "border-blue-500/50 scale-105" : "border-slate-700 grayscale"
+                          )}
+                        />
+                      ) : (
+                        <div className={cn(
+                          "w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-bold bg-gradient-to-br from-blue-500 to-indigo-600 text-white transition-all duration-500",
                           agent.active ? "border-blue-500/50 scale-105" : "border-slate-700 grayscale"
-                        )}
-                      />
+                        )}>
+                          {agent.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <div
                         className={cn(
                           "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#131825]",

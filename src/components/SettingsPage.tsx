@@ -109,7 +109,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-[#0B0F1A] text-slate-200">
       {/* Header */}
-      <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-8 flex items-center justify-between">
+      <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-4 sm:px-8 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">{t.settings.title}</h1>
           <p className="text-xs text-slate-500">{t.settings.subtitle}</p>
@@ -128,7 +128,7 @@ export default function SettingsPage() {
         </button>
       </header>
 
-      <div className="p-8 max-w-3xl mx-auto space-y-6">
+      <div className="p-4 sm:p-8 max-w-3xl mx-auto space-y-6">
         {/* Danger Zone - Emergency Stop */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}

@@ -17,9 +17,27 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
+import { useGateway } from '@/lib/GatewayContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+/** Format model id into a clean display name */
+function formatModelName(model: string): string {
+  // "anthropic/claude-opus-4-6" -> "Claude Opus 4.6"
+  // "openai/gpt-4o" -> "GPT-4o"
+  const slug = model.includes('/') ? model.split('/').pop()! : model;
+  return slug
+    .replace(/^claude-/, 'Claude ')
+    .replace(/^gpt-/, 'GPT-')
+    .replace(/^gemini-/, 'Gemini ')
+    .replace(/-(\d+)-(\d+)$/, ' $1.$2')  // opus-4-6 -> Opus 4.6
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/^Claude\s+/, 'Claude ')     // fix double-cap
+    .replace(/^Gpt/, 'GPT')
+    .trim();
 }
 
 interface HomeAgent {
@@ -32,6 +50,7 @@ interface HomeAgent {
 
 interface HomePageProps {
   agents?: HomeAgent[];
+  activeModel?: string;
   onSendMessage?: (message: string, agentId: number | null) => void;
 }
 
@@ -58,13 +77,31 @@ const itemVariants = {
   },
 };
 
-export default function HomePage({ agents = [], onSendMessage }: HomePageProps) {
+export default function HomePage({ agents = [], activeModel, onSendMessage }: HomePageProps) {
   const [inputValue, setInputValue] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<HomeAgent | null>(null);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const [modelName, setModelName] = useState(activeModel || '');
   const pickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
+  const { isConnected, send } = useGateway();
+
+  // Fetch model from gateway config
+  useEffect(() => {
+    if (activeModel) {
+      setModelName(activeModel);
+      return;
+    }
+    if (!isConnected) return;
+    send<Record<string, unknown>>('config.get', {}).then((config) => {
+      const agents_config = config?.agents as Record<string, unknown> | undefined;
+      const defaults = agents_config?.defaults as Record<string, unknown> | undefined;
+      const model = (defaults?.model as string) || (config?.model as string) || '';
+      if (model) setModelName(model);
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, activeModel]);
 
   const activeAgents = agents.filter(a => a.active);
 
@@ -142,9 +179,20 @@ export default function HomePage({ agents = [], onSendMessage }: HomePageProps) 
       >
         
         {/* LOGO / ACCENT */}
-        <motion.div variants={itemVariants} className="mb-8 flex items-center gap-2 px-3 py-1 rounded-full border border-[#1E293B] bg-[#131825]/50 backdrop-blur-sm">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+        <motion.div variants={itemVariants} className="mb-8 flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-[#1E293B] bg-[#131825]/50 backdrop-blur-sm">
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              isConnected ? "bg-green-500 animate-pulse" : "bg-slate-500"
+            )} />
             <span className="text-[10px] uppercase tracking-[0.2em] font-medium text-slate-400">{t.home.badge}</span>
+          </div>
+          {modelName && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#1E293B] bg-[#131825]/50 backdrop-blur-sm">
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+              <span className="text-[10px] font-medium text-slate-500">{formatModelName(modelName)}</span>
+            </div>
+          )}
         </motion.div>
 
         {/* HERO TITLE */}

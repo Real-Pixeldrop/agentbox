@@ -23,6 +23,7 @@ import {
   Info,
   Loader2,
   Globe,
+  AlertTriangle,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -58,6 +59,10 @@ interface AgentWizardProps {
     skills: string[];
     specialInstructions?: string;
   }) => Promise<SupabaseAgent>;
+  /** Current number of agents the user has */
+  agentCount?: number;
+  /** Whether the current user is an admin (no agent limit) */
+  isAdmin?: boolean;
 }
 
 type Tone = 'Formal' | 'Friendly' | 'Direct';
@@ -97,7 +102,7 @@ const StepHint = ({ icon: Icon, title, text }: { icon: React.ElementType; title:
   </div>
 );
 
-export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, createAgent }: AgentWizardProps) {
+export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, createAgent, agentCount = 0, isAdmin = false }: AgentWizardProps) {
   const { t } = useI18n();
   const { isConnected } = useGateway();
   const [step, setStep] = useState(1);
@@ -105,6 +110,9 @@ export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, c
   const [isLaunching, setIsLaunching] = useState(false);
   const [deployError, setDeployError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const AGENT_LIMIT = 2;
+  const limitReached = !isAdmin && agentCount >= AGENT_LIMIT;
 
   // 3 steps now: Soul (identity), Skills, Review
   const totalSteps = 3;
@@ -248,6 +256,19 @@ export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, c
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
+                {limitReached && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-2">
+                    <div className="p-1.5 rounded-md bg-amber-500/10 text-amber-400 flex-shrink-0 mt-0.5">
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-amber-300 mb-0.5">Agent limit reached</p>
+                      <p className="text-[11px] text-amber-400/80 leading-relaxed">
+                        You already have {agentCount} agents. During the beta, each user is limited to {AGENT_LIMIT} agents. Delete an existing agent to create a new one.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <StepHint
                   icon={Sparkles}
                   title={t.wizard.soulHintTitle}
@@ -526,9 +547,15 @@ export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, c
                 )}
 
                 <div className="space-y-4 pt-4">
+                  {limitReached && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs mb-2">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <p>Agent limit reached ({AGENT_LIMIT} max during beta). Delete an existing agent to create a new one.</p>
+                    </div>
+                  )}
                   <button
                     onClick={handleLaunch}
-                    disabled={isLaunching}
+                    disabled={isLaunching || limitReached}
                     className="w-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-60 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 group"
                   >
                     {isLaunching ? (

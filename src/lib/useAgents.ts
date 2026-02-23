@@ -5,6 +5,7 @@ import { supabase, type Agent } from './supabase';
 import { useAuth } from './AuthContext';
 import { useGateway } from './GatewayContext';
 import { generateGatewayAgentConfig } from './workspace-utils';
+import { vpsProvisionUser, vpsCreateDefaultFiles, vpsWriteFile } from './agent-files-api';
 
 /**
  * Hook that manages agents from Supabase + Gateway.
@@ -64,6 +65,24 @@ export function useAgents() {
   }): Promise<Agent> => {
     if (!user) throw new Error('Not authenticated');
 
+    // Enforce agent limit (2 max during beta, except admin)
+    const ADMIN_EMAIL = 'contact@pixel-drop.com';
+    const AGENT_LIMIT = 2;
+    const isAdmin = user.email === ADMIN_EMAIL;
+
+    if (!isAdmin) {
+      const { count, error: countErr } = await supabase
+        .from('agents')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (countErr) throw countErr;
+
+      if ((count ?? 0) >= AGENT_LIMIT) {
+        throw new Error('Agent limit reached (2 max during beta)');
+      }
+    }
+
     const agentId = agentData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `agent-${Date.now()}`;
     const sessionKey = `agent:${agentId}:main`;
     const lang = agentData.language || 'FR';
@@ -120,6 +139,18 @@ export function useAgents() {
       .single();
 
     if (insertErr) throw insertErr;
+
+    // 1b. Provision user workspace + seed default files on VPS
+    try {
+      await vpsProvisionUser(user.id);
+      await vpsCreateDefaultFiles(agentId, soulContent);
+      // Also create skill files
+      for (const skillId of agentData.skills) {
+        await vpsWriteFile(agentId, `skills/${skillId}/SKILL.md`, `# ${skillId}\n\nSkill: ${skillId}\n`);
+      }
+    } catch (vpsErr) {
+      console.warn('VPS workspace provisioning failed (non-fatal):', vpsErr);
+    }
 
     // 2. If gateway is connected, deploy to gateway
     if (isConnected) {

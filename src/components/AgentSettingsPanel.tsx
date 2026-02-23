@@ -31,6 +31,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
+import { useAgentFiles } from '@/lib/useAgentFiles';
 import ChannelConfig from './ChannelConfig';
 import AgentAvatar from './AgentAvatar';
 
@@ -88,6 +89,8 @@ interface AgentSettingsPanelProps {
   sessionKey: string;
   /** Navigate to the global scheduled actions page */
   onNavigateToScheduledActions?: () => void;
+  /** Supabase agent UUID — enables reading/writing skills from Supabase */
+  supabaseAgentId?: string;
 }
 
 interface MemoryFile {
@@ -118,9 +121,10 @@ type SettingsTab = 'general' | 'tools' | 'memory' | 'skills' | 'crons' | 'channe
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, onNavigateToScheduledActions }: AgentSettingsPanelProps) {
+export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, onNavigateToScheduledActions, supabaseAgentId }: AgentSettingsPanelProps) {
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
+  const agentFiles = useAgentFiles(supabaseAgentId, sessionKey);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
@@ -150,6 +154,11 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
+
+  // SOUL.md (General tab)
+  const [soulContent, setSoulContent] = useState('');
+  const [soulLoading, setSoulLoading] = useState(false);
+  const [soulSaving, setSoulSaving] = useState(false);
 
   // Photo upload
   const [agentPhoto, setAgentPhoto] = useState(agent.photo);
@@ -205,6 +214,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
 
   useEffect(() => {
     if (!open) return;
+    if (activeTab === 'general') loadSoulContent();
     if (activeTab === 'tools') loadToolsContent();
     if (activeTab === 'memory') loadMemoryFiles();
     if (activeTab === 'skills') loadSkills();
@@ -212,111 +222,102 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, open]);
 
+  // ─── SOUL.md ───────────────────────────────────────────────────────────
+
+  const loadSoulContent = useCallback(async () => {
+    if (!agentFiles.available) return;
+    setSoulLoading(true);
+    try {
+      const content = await agentFiles.readFile('SOUL.md');
+      setSoulContent(content ?? '');
+    } catch {
+      setSoulContent('');
+    } finally {
+      setSoulLoading(false);
+    }
+  }, [agentFiles]);
+
+  const saveSoulContent = useCallback(async () => {
+    if (!agentFiles.available) return;
+    setSoulSaving(true);
+    try {
+      await agentFiles.writeFile('SOUL.md', soulContent);
+      setSuccess(t.settingsPanel.saveSuccess);
+    } catch {
+      setError(t.settingsPanel.saveFailed);
+    } finally {
+      setSoulSaving(false);
+    }
+  }, [agentFiles, soulContent, t]);
+
   // ─── TOOLS.md ───────────────────────────────────────────────────────────
 
   const loadToolsContent = useCallback(async () => {
-    if (!isConnected) return;
+    if (!agentFiles.available) return;
     setToolsLoading(true);
     try {
-      const result = await send<{ content?: string }>('files.read', {
-        sessionKey,
-        path: 'TOOLS.md',
-      });
-      setToolsContent(result?.content ?? '');
+      const content = await agentFiles.readFile('TOOLS.md');
+      setToolsContent(content ?? '');
     } catch {
-      // If RPC not available, try chat.inject approach
-      try {
-        const result = await send<{ content?: string }>('chat.inject', {
-          sessionKey,
-          message: '/read TOOLS.md',
-        });
-        setToolsContent(result?.content ?? '');
-      } catch {
-        setToolsContent('');
-      }
+      setToolsContent('');
     } finally {
       setToolsLoading(false);
     }
-  }, [isConnected, send, sessionKey]);
+  }, [agentFiles]);
 
   const saveToolsContent = useCallback(async () => {
-    if (!isConnected) return;
+    if (!agentFiles.available) return;
     setToolsSaving(true);
     try {
-      await send('files.write', {
-        sessionKey,
-        path: 'TOOLS.md',
-        content: toolsContent,
-      });
+      await agentFiles.writeFile('TOOLS.md', toolsContent);
       setSuccess(t.settingsPanel.saveSuccess);
     } catch {
-      try {
-        await send('chat.inject', {
-          sessionKey,
-          message: `/write TOOLS.md\n${toolsContent}`,
-        });
-        setSuccess(t.settingsPanel.saveSuccess);
-      } catch {
-        setError(t.settingsPanel.saveFailed);
-      }
+      setError(t.settingsPanel.saveFailed);
     } finally {
       setToolsSaving(false);
     }
-  }, [isConnected, send, sessionKey, toolsContent, t]);
+  }, [agentFiles, toolsContent, t]);
 
   // ─── Memory ─────────────────────────────────────────────────────────────
 
   const loadMemoryFiles = useCallback(async () => {
-    if (!isConnected) {
+    if (!agentFiles.available) {
       setMemoryFiles([]);
       return;
     }
     setMemoryLoading(true);
     try {
-      const result = await send<{ files?: Array<{ name: string; path: string }> }>('files.list', {
-        sessionKey,
-        paths: ['MEMORY.md', 'memory/'],
-      });
-      if (result?.files && result.files.length > 0) {
-        setMemoryFiles(result.files.map(f => ({ name: f.name, path: f.path })));
-      } else {
-        setMemoryFiles([]);
-      }
+      const files = await agentFiles.listFiles(['MEMORY.md', 'memory/']);
+      setMemoryFiles(files.map(f => ({ name: f.name, path: f.path })));
     } catch {
-      // Fallback: empty
       setMemoryFiles([]);
     } finally {
       setMemoryLoading(false);
     }
-  }, [isConnected, send, sessionKey]);
+  }, [agentFiles]);
 
   const loadMemoryFileContent = useCallback(async (file: MemoryFile) => {
-    if (!isConnected) return;
+    if (!agentFiles.available) return;
     setSelectedMemoryFile({ ...file, content: undefined });
     setEditingMemoryContent('');
     try {
-      const result = await send<{ content?: string }>('files.read', {
-        sessionKey,
-        path: file.path || file.name,
-      });
-      const content = result?.content ?? '';
-      setSelectedMemoryFile({ ...file, content });
-      setEditingMemoryContent(content);
+      const content = await agentFiles.readFile(file.path || file.name);
+      setSelectedMemoryFile({ ...file, content: content ?? '' });
+      setEditingMemoryContent(content ?? '');
     } catch {
       setError(`${t.settingsPanel.loadFailed}: ${file.name}`);
       setSelectedMemoryFile(null);
     }
-  }, [isConnected, send, sessionKey, t]);
+  }, [agentFiles, t]);
 
   const saveMemoryFile = useCallback(async () => {
-    if (!isConnected || !selectedMemoryFile) return;
+    if (!agentFiles.available || !selectedMemoryFile) return;
     setMemoryFileSaving(true);
     try {
-      await send('files.write', {
-        sessionKey,
-        path: selectedMemoryFile.path || selectedMemoryFile.name,
-        content: editingMemoryContent,
-      });
+      await agentFiles.writeFile(
+        selectedMemoryFile.path || selectedMemoryFile.name,
+        editingMemoryContent,
+      );
       setSelectedMemoryFile({ ...selectedMemoryFile, content: editingMemoryContent });
       setSuccess(t.settingsPanel.saveSuccess);
     } catch {
@@ -324,23 +325,50 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
     } finally {
       setMemoryFileSaving(false);
     }
-  }, [isConnected, send, sessionKey, selectedMemoryFile, editingMemoryContent, t]);
+  }, [agentFiles, selectedMemoryFile, editingMemoryContent, t]);
 
   // ─── Skills ─────────────────────────────────────────────────────────────
 
   const loadSkills = useCallback(async () => {
-    if (!isConnected) {
-      setSkills([]);
-      return;
-    }
     setSkillsLoading(true);
     try {
-      const result = await send<{ skills?: SkillItem[] }>('files.list', {
-        sessionKey,
-        paths: ['skills/'],
-      });
-      if (result?.skills && result.skills.length > 0) {
-        setSkills(result.skills);
+      // List skill files via the unified agentFiles hook (gateway first, Supabase fallback)
+      const files = await agentFiles.listFiles(['skills/']);
+
+      if (files.length > 0) {
+        // Each file is a skill — parse into SkillItem from the SKILL.md files
+        const loadedSkills: SkillItem[] = [];
+        for (const file of files) {
+          // Only process SKILL.md files
+          if (!file.path.endsWith('/SKILL.md') && !file.path.endsWith('.md')) continue;
+
+          // Extract skill id from path: "skills/email/SKILL.md" → "email"
+          const parts = file.path.split('/');
+          const skillId = parts.length >= 2 ? parts[parts.length - 2] : file.name.replace('.md', '');
+
+          try {
+            const content = await agentFiles.readFile(file.path);
+            const name = content?.match(/^#\s+(.+)/m)?.[1] || skillId;
+            const desc = content?.split('\n').slice(1).find(l => l.trim() && !l.startsWith('#'))?.trim() || '';
+            loadedSkills.push({
+              id: skillId,
+              name,
+              description: desc,
+              enabled: true,
+              origin: 'created',
+            });
+          } catch {
+            // Skip unreadable skill files
+            loadedSkills.push({
+              id: skillId,
+              name: skillId,
+              description: '',
+              enabled: true,
+              origin: 'created',
+            });
+          }
+        }
+        setSkills(loadedSkills);
       } else {
         setSkills([]);
       }
@@ -349,25 +377,24 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
     } finally {
       setSkillsLoading(false);
     }
-  }, [isConnected, send, sessionKey]);
+  }, [agentFiles]);
 
   const saveSkill = useCallback(async () => {
-    if (!isConnected) return;
+    if (!agentFiles.available) return;
     setSkillSaving(true);
     try {
-      const skillData = editingSkill ?? {
-        id: newSkillName.toLowerCase().replace(/\s+/g, '-'),
-        name: newSkillName,
-        description: newSkillDesc,
-        enabled: true,
-        origin: 'created' as const,
-      };
+      const skillData: SkillItem = editingSkill
+        ? { ...editingSkill }
+        : {
+            id: newSkillName.toLowerCase().replace(/\s+/g, '-'),
+            name: newSkillName,
+            description: newSkillDesc,
+            enabled: true,
+            origin: 'created' as const,
+          };
 
-      await send('files.write', {
-        sessionKey,
-        path: `skills/${skillData.id}/SKILL.md`,
-        content: `# ${skillData.name}\n\n${skillData.description}\n\n## Script\n\n${editingSkill ? '' : newSkillScript}`,
-      });
+      const skillContent = `# ${skillData.name}\n\n${skillData.description}\n\n## Script\n\n${editingSkill ? '' : newSkillScript}`;
+      await agentFiles.writeFile(`skills/${skillData.id}/SKILL.md`, skillContent);
 
       setSuccess(t.settingsPanel.saveSuccess);
       setShowSkillForm(false);
@@ -381,7 +408,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
     } finally {
       setSkillSaving(false);
     }
-  }, [isConnected, send, sessionKey, editingSkill, newSkillName, newSkillDesc, newSkillScript, loadSkills, t]);
+  }, [agentFiles, editingSkill, newSkillName, newSkillDesc, newSkillScript, loadSkills, t]);
 
   // ─── Crons ──────────────────────────────────────────────────────────────
 
@@ -482,7 +509,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
 
   const saveMemoryNote = useCallback(async () => {
     if (!noteContent.trim()) return;
-    if (!isConnected) return;
+    if (!agentFiles.available) return;
     
     setNoteSaving(true);
     try {
@@ -495,21 +522,18 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
       // Try to read existing file and append
       let existing = '';
       try {
-        const result = await send<{ content?: string }>('files.read', {
-          sessionKey,
-          path: filePath,
-        });
-        existing = result?.content ?? '';
+        const content = await agentFiles.readFile(filePath);
+        existing = content ?? '';
       } catch {
         // File doesn't exist yet, start fresh
         existing = `# Memory — ${today}\n`;
       }
       
-      await send('files.write', {
-        sessionKey,
-        path: filePath,
-        content: existing + noteBlock,
-      });
+      if (!existing) {
+        existing = `# Memory — ${today}\n`;
+      }
+
+      await agentFiles.writeFile(filePath, existing + noteBlock);
       
       setSuccess(t.settingsPanel.noteSaved);
       setNoteTitle('');
@@ -522,7 +546,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
     } finally {
       setNoteSaving(false);
     }
-  }, [isConnected, send, sessionKey, noteTitle, noteContent, loadMemoryFiles, t]);
+  }, [agentFiles, noteTitle, noteContent, loadMemoryFiles, t]);
 
   // ─── Tab definitions ───────────────────────────────────────────────────
 
@@ -645,6 +669,49 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
           {agent.active ? t.agents.active : t.agents.inactive}
         </div>
       </div>
+
+      {/* SOUL.md Editor */}
+      {agentFiles.available && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-medium uppercase tracking-widest text-slate-500">
+              SOUL.MD
+            </label>
+            <button
+              onClick={saveSoulContent}
+              disabled={soulSaving}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all",
+                soulSaving
+                  ? "bg-blue-600/50 text-blue-200 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-500 text-white"
+              )}
+            >
+              {soulSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+              {soulSaving ? t.settingsPanel.saving : t.settingsPanel.save}
+            </button>
+          </div>
+          {soulLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+            </div>
+          ) : (
+            <div className="bg-[#0B0F1A] border border-slate-800 rounded-xl overflow-hidden focus-within:border-blue-500/30 transition-colors">
+              <div className="px-4 py-2 bg-[#131825] border-b border-slate-800/50 flex items-center gap-2">
+                <FileText className="w-3 h-3 text-slate-500" />
+                <span className="text-[10px] font-mono text-slate-500">SOUL.md</span>
+              </div>
+              <textarea
+                value={soulContent}
+                onChange={(e) => setSoulContent(e.target.value)}
+                className="w-full min-h-[200px] p-4 bg-transparent outline-none font-mono text-sm leading-relaxed resize-none text-slate-300"
+                spellCheck={false}
+                placeholder="Define your agent's identity, personality and instructions..."
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -656,7 +723,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
           <FileText className="w-4 h-4 text-blue-400" />
           <span className="text-xs font-mono font-bold text-blue-400 tracking-wide">TOOLS.MD</span>
         </div>
-        {isConnected && (
+        {agentFiles.available && (
           <button
             onClick={saveToolsContent}
             disabled={toolsSaving}
@@ -673,7 +740,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
         )}
       </div>
 
-      {!isConnected ? (
+      {!agentFiles.available ? (
         <GatewayPlaceholder message={t.settingsPanel.connectGateway} />
       ) : toolsLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -706,7 +773,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
           <span className="text-sm font-semibold text-slate-200">{t.settingsPanel.memoryFiles}</span>
         </div>
         <div className="flex items-center gap-2">
-          {isConnected && (
+          {agentFiles.available && (
             <>
               <button
                 onClick={() => { setShowNoteForm(!showNoteForm); setNoteTitle(''); setNoteContent(''); }}
@@ -729,7 +796,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
 
       {/* Add note form */}
       <AnimatePresence>
-        {showNoteForm && isConnected && (
+        {showNoteForm && agentFiles.available && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -776,7 +843,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
         )}
       </AnimatePresence>
 
-      {!isConnected ? (
+      {!agentFiles.available ? (
         <GatewayPlaceholder message={t.settingsPanel.connectGateway} />
       ) : memoryLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -876,7 +943,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
           <Zap className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-semibold text-slate-200">{t.settingsPanel.tabSkills}</span>
         </div>
-        {isConnected && (
+        {agentFiles.available && (
           <button
             onClick={() => {
               setShowSkillForm(true);
@@ -893,7 +960,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
         )}
       </div>
 
-      {!isConnected ? (
+      {!agentFiles.available ? (
         <GatewayPlaceholder message={t.settingsPanel.connectGateway} />
       ) : skillsLoading ? (
         <div className="flex items-center justify-center py-16">

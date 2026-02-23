@@ -23,6 +23,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { uploadAttachment } from '@/lib/storage';
 import AgentSettingsPanel from './AgentSettingsPanel';
 import AgentAvatar from './AgentAvatar';
+import { useAgentFiles } from '@/lib/useAgentFiles';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -67,6 +68,8 @@ interface AgentConversationProps {
   sessionKey: string;
   onBack: () => void;
   onOpenSettings?: () => void;
+  /** Supabase agent UUID — for file sync between chat and settings */
+  supabaseAgentId?: string;
 }
 
 interface ChatMessage {
@@ -88,10 +91,11 @@ const DEMO_MESSAGES: ChatMessage[] = [
   { id: 'm7', sender: 'agent', text: "On it. I'll research the company, check LinkedIn profiles, and prepare a qualification summary. ETA: 15 minutes.", time: '09:15' },
 ];
 
-export default function AgentConversation({ agent, sessionKey, onBack, onOpenSettings }: AgentConversationProps) {
+export default function AgentConversation({ agent, sessionKey, onBack, onOpenSettings, supabaseAgentId }: AgentConversationProps) {
   const { t } = useI18n();
   const { isConnected, send, onEvent } = useGateway();
   const { user } = useAuth();
+  const agentFiles = useAgentFiles(supabaseAgentId, sessionKey);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -220,6 +224,22 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
     // Only process events for our current session
     if (eventSessionKey && eventSessionKey !== sessionKey && !eventSessionKey.startsWith(sessionKey)) return;
 
+    // Sync file changes from gateway to Supabase
+    // The gateway may emit file-change events when the agent writes files during chat
+    if (type === 'agent') {
+      const stream = data.stream as string | undefined;
+      const agentData = data.data as Record<string, unknown> | undefined;
+      if (stream === 'file_write' && agentData) {
+        const filePath = agentData.path as string | undefined;
+        const content = agentData.content as string | undefined;
+        if (filePath && content !== undefined) {
+          agentFiles.syncFileToVps(filePath, content).catch(() => {
+            // Best-effort sync, don't interrupt chat
+          });
+        }
+      }
+    }
+
     // Gateway sends two event types for streaming:
     // 1. "agent" events with stream="assistant" → contains data.delta (incremental text)
     // 2. "chat" events with state="delta"|"final" → contains message.content (full text so far)
@@ -292,7 +312,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
         setMessages((msgs) => [...msgs, errorMsg]);
       }
     }
-  }, [sessionKey]);
+  }, [sessionKey, agentFiles]);
 
   // Image attachment handlers
   const handleFileSelect = (file: File) => {
@@ -477,6 +497,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
         onClose={() => setSettingsOpen(false)}
         agent={agent}
         sessionKey={sessionKey}
+        supabaseAgentId={supabaseAgentId}
       />
 
       {/* Chat Content */}

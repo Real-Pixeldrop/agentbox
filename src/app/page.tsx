@@ -174,6 +174,10 @@ export default function AgentBoxDashboard() {
 
   const unreadCount = realUnreadCount;
 
+  // Admin check for agent limit
+  const ADMIN_EMAIL = 'contact@pixel-drop.com';
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
   // Convert Supabase agents to display format, or show demo agents if none
   useEffect(() => {
     if (agentsLoading) return;
@@ -425,6 +429,7 @@ export default function AgentBoxDashboard() {
             setSelectedAgentId(null);
             setCurrentPage('agents');
           }}
+          supabaseAgentId={selectedAgent.supabaseId}
         />
       );
     }
@@ -835,6 +840,8 @@ export default function AgentBoxDashboard() {
           onLaunch={handleLaunchAgent}
           onAgentCreated={handleAgentCreated}
           createAgent={user ? createAgent : undefined}
+          agentCount={supabaseAgents.length}
+          isAdmin={isAdmin}
         />
       )}
 
@@ -857,6 +864,7 @@ export default function AgentBoxDashboard() {
             setSettingsPanelAgent(null);
             handleNavigate('scheduled-actions');
           }}
+          supabaseAgentId={settingsPanelAgent.supabaseId}
         />
       )}
 

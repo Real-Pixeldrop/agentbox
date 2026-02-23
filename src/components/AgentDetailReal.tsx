@@ -23,6 +23,7 @@ import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import type { Agent } from '@/lib/supabase';
 import AgentConversation from './AgentConversation';
+import { createGatewayFileManager } from '@/lib/gateway-file-ops';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -42,7 +43,7 @@ interface MemoryFile {
 
 export default function AgentDetailReal({ agent, onBack }: AgentDetailRealProps) {
   const { t } = useI18n();
-  const { isConnected, send } = useGateway();
+  const { isConnected, send, client } = useGateway();
   const [activeTab, setActiveTab] = useState('personality');
   const [soulContent, setSoulContent] = useState('');
   const [soulLoading, setSoulLoading] = useState(false);
@@ -50,6 +51,8 @@ export default function AgentDetailReal({ agent, onBack }: AgentDetailRealProps)
   const [memoryFiles, setMemoryFiles] = useState<MemoryFile[]>([]);
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [selectedMemoryFile, setSelectedMemoryFile] = useState<MemoryFile | null>(null);
+  const [editingMemoryFile, setEditingMemoryFile] = useState<string>('');
+  const [memoryFileSaving, setMemoryFileSaving] = useState(false);
   const [config, setConfig] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -236,17 +239,36 @@ ${agent.industry ? `- Specialized in ${agent.industry}` : '- General purpose ass
   };
 
   const loadMemoryFileContent = async (file: MemoryFile) => {
-    if (!isConnected) return;
+    if (!isConnected || !agent.gateway_agent_id) return;
     
     setSelectedMemoryFile({ ...file, content: undefined });
+    setEditingMemoryFile('');
     
     try {
-      // This would require a custom endpoint or file reading capability
-      // For now, we'll provide some default content
-      const defaultContent = generateDefaultMemoryContent(file.name);
-      setSelectedMemoryFile({ ...file, content: defaultContent });
+      const fileManager = createGatewayFileManager(client);
+      const content = await fileManager.readFile(agent.gateway_agent_id, file.name);
+      setSelectedMemoryFile({ ...file, content });
+      setEditingMemoryFile(content);
     } catch (err) {
       setError(`Failed to load ${file.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const saveMemoryFile = async () => {
+    if (!isConnected || !agent.gateway_agent_id || !selectedMemoryFile) return;
+    
+    setMemoryFileSaving(true);
+    setError(null);
+    
+    try {
+      const fileManager = createGatewayFileManager(client);
+      await fileManager.writeFile(agent.gateway_agent_id, selectedMemoryFile.name, editingMemoryFile);
+      setSelectedMemoryFile({ ...selectedMemoryFile, content: editingMemoryFile });
+      setSuccess(`${selectedMemoryFile.name} saved successfully!`);
+    } catch (err) {
+      setError(`Failed to save ${selectedMemoryFile.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setMemoryFileSaving(false);
     }
   };
 
@@ -521,19 +543,54 @@ No activities recorded for this date.
                               <FileText className="w-3.5 h-3.5 text-blue-400" />
                               <span className="text-xs font-mono text-blue-400 font-bold tracking-wide">{selectedMemoryFile.name}</span>
                             </div>
-                            <button
-                              onClick={() => setSelectedMemoryFile(null)}
-                              className="text-slate-500 hover:text-white text-xs"
-                            >
-                              Fermer
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {isConnected && selectedMemoryFile.content && (
+                                <button
+                                  onClick={saveMemoryFile}
+                                  disabled={memoryFileSaving}
+                                  className={cn(
+                                    "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all",
+                                    memoryFileSaving 
+                                      ? "bg-blue-600/50 text-blue-200 cursor-not-allowed"
+                                      : "bg-blue-600 hover:bg-blue-500 text-white"
+                                  )}
+                                >
+                                  {memoryFileSaving ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Save className="w-3 h-3" />
+                                  )}
+                                  {memoryFileSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setSelectedMemoryFile(null);
+                                  setEditingMemoryFile('');
+                                }}
+                                className="text-slate-500 hover:text-white text-xs"
+                              >
+                                Fermer
+                              </button>
+                            </div>
                           </div>
                           
-                          <div className="flex-1 p-5 overflow-auto">
+                          <div className="flex-1 overflow-hidden">
                             {selectedMemoryFile.content ? (
-                              <pre className="font-mono text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">
-                                {selectedMemoryFile.content}
-                              </pre>
+                              isConnected ? (
+                                <textarea
+                                  value={editingMemoryFile}
+                                  onChange={(e) => setEditingMemoryFile(e.target.value)}
+                                  className="w-full h-full p-5 bg-transparent outline-none font-mono text-sm leading-relaxed resize-none text-slate-300"
+                                  spellCheck={false}
+                                />
+                              ) : (
+                                <div className="p-5 h-full overflow-auto">
+                                  <pre className="font-mono text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">
+                                    {selectedMemoryFile.content}
+                                  </pre>
+                                </div>
+                              )
                             ) : (
                               <div className="flex items-center justify-center h-full">
                                 <div className="flex items-center gap-2 text-slate-500">

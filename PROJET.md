@@ -108,3 +108,22 @@ JAMAIS mentionner "OpenClaw" dans l'interface utilisateur. Les noms de fichiers 
 5. Pricing (Free / Pro / Enterprise)
 6. FAQ
 7. CTA final
+
+### Argument sécurité (commentaire YT - 23/02/2026)
+Un utilisateur pointe les failles d'OpenClaw :
+- Port ouvert par défaut au monde entier
+- Private keys exposées sur le serveur
+- Scanners qui cherchent des instances non sécurisées
+- Boite noire (tu sais pas ce que l'agent fait pendant que tu dors)
+- Skills malveillantes poussées par des hackers
+
+AgentBox répond à TOUT ça :
+- Auth obligatoire (Supabase + Google OAuth)
+- SSL/WSS par défaut
+- Sandboxing par utilisateur
+- Dashboard de monitoring (logs, activité, coûts)
+- Skills vérifiées / marketplace auditée (futur)
+- Pas de port ouvert, infra managée
+
+LANDING PAGE : section "Sécurité" obligatoire. Argument différenciant fort.
+"La puissance d'OpenClaw, sans les risques."

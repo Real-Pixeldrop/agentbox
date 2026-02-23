@@ -28,6 +28,12 @@ const fr: Translations = {
     suggestion3: "À quels emails dois-je répondre ?",
     commands: "Commandes",
     searchLogs: "Rechercher les logs",
+    auto: "Auto",
+    autoRoute: "Routage auto",
+    autoRouteDesc: "Envoie au meilleur agent",
+    yourAgents: "Vos agents",
+    noAgents: "Aucun agent actif",
+    talkTo: "Parler à",
   },
   // Agents page
   agents: {

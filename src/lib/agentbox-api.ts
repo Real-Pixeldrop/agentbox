@@ -60,12 +60,46 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 }
 
 /**
+ * Safely parse a fetch response as JSON.
+ * Throws a user-friendly error when the response isn't valid JSON
+ * (e.g. the gateway returns an HTML page).
+ */
+async function safeJsonParse<T = Record<string, unknown>>(res: Response): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+
+  // If the content-type is clearly not JSON, don't even try to parse
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    if (text.trimStart().startsWith('<')) {
+      throw new Error('GATEWAY_NOT_CONNECTED');
+    }
+    // Might still be JSON without proper content-type header
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new Error('GATEWAY_NOT_CONNECTED');
+    }
+  }
+
+  // Content-type says JSON — try to parse
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    if (text.trimStart().startsWith('<')) {
+      throw new Error('GATEWAY_NOT_CONNECTED');
+    }
+    throw new Error('ENDPOINT_UNAVAILABLE');
+  }
+}
+
+/**
  * Workspace API
  */
 export async function getWorkspaceInfo(): Promise<WorkspaceInfo> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/workspace`, { headers });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string; workspace: WorkspaceInfo }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to get workspace info');
   return data.workspace;
 }
@@ -76,7 +110,7 @@ export async function listFiles(dirPath = ''): Promise<{ path: string; files: Fi
     ? `${API_BASE}/api/files?path=${encodeURIComponent(dirPath)}`
     : `${API_BASE}/api/files`;
   const res = await fetch(url, { headers });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string; path: string; files: FileEntry[] }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to list files');
   return { path: data.path, files: data.files };
 }
@@ -84,7 +118,7 @@ export async function listFiles(dirPath = ''): Promise<{ path: string; files: Fi
 export async function readFile(filePath: string): Promise<string> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/files?path=${encodeURIComponent(filePath)}`, { headers });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string; content: string }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to read file');
   return data.content;
 }
@@ -96,7 +130,7 @@ export async function writeFile(filePath: string, content: string): Promise<void
     headers,
     body: JSON.stringify({ path: filePath, content }),
   });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to write file');
 }
 
@@ -107,7 +141,7 @@ export async function deleteFile(filePath: string): Promise<void> {
     headers,
     body: JSON.stringify({ path: filePath }),
   });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to delete file');
 }
 
@@ -121,7 +155,7 @@ export async function runCode(language: string, code: string): Promise<SandboxRe
     headers,
     body: JSON.stringify({ language, code }),
   });
-  const data = await res.json();
+  const data = await safeJsonParse<SandboxResult & { ok: boolean; error?: string }>(res);
   if (!data.ok) throw new Error(data.error || 'Sandbox execution failed');
   return data;
 }
@@ -132,7 +166,7 @@ export async function runCode(language: string, code: string): Promise<SandboxRe
 export async function getCredentials(): Promise<Record<string, CredentialInfo>> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/credentials`, { headers });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string; credentials: Record<string, CredentialInfo> }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to get credentials');
   return data.credentials;
 }
@@ -144,7 +178,7 @@ export async function setCredential(key: string, value: string, type = 'api_key'
     headers,
     body: JSON.stringify({ key, value, type }),
   });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to save credential');
 }
 
@@ -155,7 +189,7 @@ export async function deleteCredential(key: string): Promise<void> {
     headers,
     body: JSON.stringify({ key }),
   });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to delete credential');
 }
 
@@ -169,7 +203,7 @@ export async function generateDownloadUrl(filePath: string): Promise<string> {
     headers,
     body: JSON.stringify({ filePath }),
   });
-  const data = await res.json();
+  const data = await safeJsonParse<{ ok: boolean; error?: string; url: string }>(res);
   if (!data.ok) throw new Error(data.error || 'Failed to generate download URL');
   return data.url;
 }

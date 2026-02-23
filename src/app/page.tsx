@@ -16,6 +16,8 @@ import { twMerge } from 'tailwind-merge';
 import { AnimatePresence } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
+import { useAuth } from '@/lib/AuthContext';
+import AuthPage from '@/components/AuthPage';
 import EnrichedSidebar from '@/components/EnrichedSidebar';
 import HomePage from '@/components/HomePage';
 import TeamsPage from '@/components/TeamsPage';
@@ -164,6 +166,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
 // --- Main ---
 
 export default function AgentBoxDashboard() {
+  const { user, loading: authLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
   const [agents, setAgents] = useState<AgentData[]>([]);
   const [showWizard, setShowWizard] = useState(false);
@@ -179,6 +182,18 @@ export default function AgentBoxDashboard() {
   const [agentsLoaded, setAgentsLoaded] = useState(false);
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
+
+  // Auth guard
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0C] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-500"></div>
+      </div>
+    );
+  }
+  if (!user) {
+    return <AuthPage />;
+  }
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

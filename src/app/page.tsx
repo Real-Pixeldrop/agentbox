@@ -10,6 +10,8 @@ import {
   Pencil,
   Star,
   Coins,
+  Users,
+  X,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -91,77 +93,7 @@ interface AgentData {
   sessionKey?: string;
 }
 
-// Mock data - only used when gateway is disconnected (demo mode)
-const MOCK_AGENTS: AgentData[] = [
-  {
-    id: 1,
-    name: "Alexandre Dubois",
-    role: "Finance Assistant",
-    status: "Active",
-    channels: ["WhatsApp", "Email"],
-    active: true,
-    lastActive: "Active now",
-    photo: "https://randomuser.me/api/portraits/men/32.jpg",
-    schedule: "Mon-Fri 9am-6pm",
-    favorite: true,
-    tokensToday: 1247,
-    costToday: 0.03,
-    tokenLimit: 5000,
-  },
-  {
-    id: 2,
-    name: "Marie Laurent",
-    role: "Customer Support",
-    status: "Active",
-    channels: ["Email", "Telegram"],
-    active: true,
-    lastActive: "1h ago",
-    photo: "https://randomuser.me/api/portraits/women/44.jpg",
-    schedule: "24/7",
-    favorite: true,
-    tokensToday: 3842,
-    costToday: 0.09,
-    tokenLimit: 10000,
-  },
-  {
-    id: 3,
-    name: "Hugo Martin",
-    role: "Marketing Manager",
-    status: "Inactive",
-    channels: [],
-    active: false,
-    lastActive: "Never started",
-    photo: "https://randomuser.me/api/portraits/men/75.jpg",
-    schedule: "Not configured",
-    favorite: false,
-    tokensToday: 0,
-    costToday: 0,
-    tokenLimit: 5000,
-  },
-  {
-    id: 4,
-    name: "Sarah Cohen",
-    role: "Sales Prospection",
-    status: "Active",
-    channels: ["WhatsApp", "Email", "Discord"],
-    active: true,
-    lastActive: "5min ago",
-    photo: "https://randomuser.me/api/portraits/women/68.jpg",
-    schedule: "Mon-Fri 8am-8pm",
-    favorite: true,
-    tokensToday: 2156,
-    costToday: 0.05,
-    tokenLimit: 5000,
-  },
-];
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: 'n1', type: 'task', agentName: 'Alexandre Dubois', agentPhoto: 'https://randomuser.me/api/portraits/men/32.jpg', message: 'completed CRM pipeline update — 3 new leads.', time: '2 min ago', read: false },
-  { id: 'n2', type: 'email', agentName: 'Marie Laurent', agentPhoto: 'https://randomuser.me/api/portraits/women/44.jpg', message: 'processed 5 support emails. 1 requires escalation.', time: '15 min ago', read: false },
-  { id: 'n3', type: 'reminder', agentName: 'Alexandre Dubois', agentPhoto: 'https://randomuser.me/api/portraits/men/32.jpg', message: 'Reminder: Meeting with Client X in 2 hours.', time: '30 min ago', read: false },
-  { id: 'n4', type: 'error', agentName: 'Sarah Cohen', agentPhoto: 'https://randomuser.me/api/portraits/women/68.jpg', message: 'WhatsApp API rate limit reached. 3 messages queued.', time: '1h ago', read: true },
-  { id: 'n5', type: 'task', agentName: 'Sarah Cohen', agentPhoto: 'https://randomuser.me/api/portraits/women/68.jpg', message: 'sent 25 cold outreach emails. Open rate: 34%.', time: '2h ago', read: true },
-];
+// Removed MOCK_AGENTS and MOCK_NOTIFICATIONS - no more demo/fake data
 
 // --- Main ---
 
@@ -172,6 +104,7 @@ export default function AgentBoxDashboard() {
   const [showWizard, setShowWizard] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [showAgentDetail, setShowAgentDetail] = useState(false);
+  const [agentMenuId, setAgentMenuId] = useState<number | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toast, setToast] = useState<{ visible: boolean; message: string; description?: string }>({
@@ -185,18 +118,30 @@ export default function AgentBoxDashboard() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Load agents from gateway or use mock data
+  // Load agents from gateway only - no mock data
   useEffect(() => {
     if (isConnected) {
       loadRealAgents();
     } else {
-      // Demo mode: show mock agents and notifications
-      setAgents(MOCK_AGENTS);
-      setNotifications(MOCK_NOTIFICATIONS);
-      setAgentsLoaded(true);
+      // When disconnected from gateway: show empty state with loading skeletons
+      setAgents([]);
+      setNotifications([]);
+      setAgentsLoaded(false); // Show loading state when not connected
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
+
+  // Close agent menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setAgentMenuId(null);
+    };
+    
+    if (agentMenuId !== null) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [agentMenuId]);
 
   const loadRealAgents = useCallback(async () => {
     try {
@@ -473,12 +418,38 @@ export default function AgentBoxDashboard() {
           <p className="text-slate-400 text-sm">{t.agents.subtitle}</p>
         </div>
 
-        {/* Loading state */}
-        {!agentsLoaded && isConnected && (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex items-center gap-3 text-slate-500">
-              <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">Loading agents from gateway...</span>
+        {/* Loading state - show skeletons when not connected or loading */}
+        {!agentsLoaded && (
+          <div className="space-y-6">
+            {/* Show loading skeletons */}
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-[#131825] border border-slate-800/60 rounded-xl p-6 animate-pulse">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-slate-700/50" />
+                    <div>
+                      <div className="h-4 bg-slate-700/50 rounded w-32 mb-2" />
+                      <div className="h-3 bg-slate-700/50 rounded w-24" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded bg-slate-700/50" />
+                    <div className="w-9 h-5 rounded-full bg-slate-700/50" />
+                    <div className="w-5 h-5 rounded bg-slate-700/50" />
+                  </div>
+                </div>
+                <div className="flex gap-2 mb-4">
+                  <div className="h-6 bg-slate-700/50 rounded-full w-20" />
+                  <div className="h-6 bg-slate-700/50 rounded-full w-16" />
+                </div>
+                <div className="h-3 bg-slate-700/50 rounded w-full mb-2" />
+                <div className="h-2 bg-slate-700/50 rounded w-3/4" />
+              </div>
+            ))}
+            <div className="text-center py-8">
+              <div className="text-sm text-slate-500">
+                {isConnected ? "Chargement des agents..." : "Connectez le gateway pour voir vos agents"}
+              </div>
             </div>
           </div>
         )}
@@ -553,9 +524,63 @@ export default function AgentBoxDashboard() {
                       />
                     </button>
                     <Toggle enabled={agent.active} onChange={() => { toggleAgent(agent.id); }} />
-                    <button className="p-1 text-slate-500 hover:text-white transition-colors">
-                      <MoreHorizontal size={20} />
-                    </button>
+                    <div className="relative">
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setAgentMenuId(agentMenuId === agent.id ? null : agent.id); 
+                        }}
+                        className="p-1 text-slate-500 hover:text-white transition-colors"
+                      >
+                        <MoreHorizontal size={20} />
+                      </button>
+                      
+                      {/* Agent Menu Dropdown */}
+                      {agentMenuId === agent.id && (
+                        <div className="absolute right-0 top-8 w-48 bg-[#131825] border border-slate-700 rounded-lg shadow-xl z-20 py-2">
+                          <button
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setSelectedAgentId(agent.id); 
+                              setShowAgentDetail(true); 
+                              setCurrentPage('agent-detail'); 
+                              setAgentMenuId(null);
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white transition-colors"
+                          >
+                            <Pencil size={16} />
+                            Modifier
+                          </button>
+                          
+                          <button
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              // TODO: Implement assign to team functionality
+                              console.log('Assign to team:', agent.id); 
+                              setAgentMenuId(null);
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white transition-colors"
+                          >
+                            <Users size={16} />
+                            Assigner à une équipe
+                          </button>
+                          
+                          <button
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agent.name} ?`)) {
+                                setAgents(prev => prev.filter(a => a.id !== agent.id));
+                              }
+                              setAgentMenuId(null);
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                          >
+                            <X size={16} />
+                            Supprimer l'agent
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

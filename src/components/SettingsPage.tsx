@@ -120,7 +120,8 @@ export default function SettingsPage() {
       </header>
 
       <div className="p-8 max-w-3xl mx-auto space-y-6">
-        {/* Gateway Connection */}
+        {/* Gateway Connection - HIDDEN FROM USERS */}
+        <div style={{ display: 'none' }}>
         <Section title={t.gateway.title} desc={t.gateway.desc} icon={Wifi}>
           <div className="space-y-4">
             {/* Status indicator */}
@@ -219,6 +220,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </Section>
+        </div>
 
         {/* Profile */}
         <Section title={t.settings.profile} desc={t.settings.profileDesc} icon={User}>

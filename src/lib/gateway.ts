@@ -1,7 +1,16 @@
 /**
- * GatewayClient - WebSocket client for the AgentBox Gateway (JSON-RPC 2.0)
+ * GatewayClient - WebSocket client for the Clawdbot Gateway Protocol
  *
- * Handles connection, auto-reconnect, RPC calls, and streaming events.
+ * Protocol:
+ *   - Requests:  {type: "req", id: string, method: string, params: object}
+ *   - Responses: {type: "res", id: string, ok: boolean, payload?: any, error?: {message: string}}
+ *   - Events:    {type: "event", event: string, payload?: any, seq?: number}
+ *
+ * Connection flow:
+ *   1. Open WebSocket
+ *   2. Receive connect.challenge event
+ *   3. Send connect request with auth
+ *   4. Receive connect response (hello) → connected
  */
 
 type EventCallback = (event: GatewayEvent) => void;
@@ -10,12 +19,12 @@ type StatusCallback = (status: ConnectionStatus) => void;
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
 export interface GatewayEvent {
-  /** The JSON-RPC method or notification type */
+  /** The event name (e.g. "chat") */
   type: string;
   /** Payload data */
   data: Record<string, unknown>;
-  /** Run ID if applicable */
-  runId?: string;
+  /** Session key if applicable */
+  sessionKey?: string;
 }
 
 interface PendingRPC {
@@ -24,12 +33,21 @@ interface PendingRPC {
   timer: ReturnType<typeof setTimeout>;
 }
 
+/** Generate a unique string ID for requests */
+function generateId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Random instanceId generated once per client lifetime */
+const CLIENT_INSTANCE_ID = typeof crypto !== 'undefined' && crypto.randomUUID
+  ? crypto.randomUUID()
+  : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
 export class GatewayClient {
   private ws: WebSocket | null = null;
   private url: string = '';
   private token: string = '';
-  private rpcId: number = 0;
-  private pendingRpcs: Map<number, PendingRPC> = new Map();
+  private pendingRpcs: Map<string, PendingRPC> = new Map();
   private eventListeners: Set<EventCallback> = new Set();
   private statusListeners: Set<StatusCallback> = new Set();
   private _status: ConnectionStatus = 'disconnected';
@@ -39,6 +57,12 @@ export class GatewayClient {
   private shouldReconnect: boolean = false;
   private connectPromiseResolve: (() => void) | null = null;
   private connectPromiseReject: ((err: Error) => void) | null = null;
+
+  /** The default session key received from the gateway or inferred */
+  public sessionKey: string = 'agent:main:main';
+
+  /** Snapshot received on connect */
+  public snapshot: Record<string, unknown> | null = null;
 
   get status(): ConnectionStatus {
     return this._status;
@@ -77,18 +101,11 @@ export class GatewayClient {
       this.setStatus('connecting');
 
       try {
-        // Build URL with auth token in connect params
-        const wsUrl = new URL(url2ws(this.url));
-        wsUrl.searchParams.set('auth.token', this.token);
-
-        this.ws = new WebSocket(wsUrl.toString());
+        const wsUrl = url2ws(this.url);
+        this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-          this.setStatus('connected');
-          this.reconnectDelay = 1000;
-          this.connectPromiseResolve?.();
-          this.connectPromiseResolve = null;
-          this.connectPromiseReject = null;
+          // Do NOT resolve here — wait for connect.challenge + hello response
         };
 
         this.ws.onmessage = (event) => {
@@ -137,7 +154,7 @@ export class GatewayClient {
   }
 
   /**
-   * Send a JSON-RPC call and wait for the response.
+   * Send a request and wait for the response.
    */
   send<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -146,9 +163,9 @@ export class GatewayClient {
         return;
       }
 
-      const id = ++this.rpcId;
+      const id = generateId();
       const message = JSON.stringify({
-        jsonrpc: '2.0',
+        type: 'req',
         id,
         method,
         params,
@@ -189,6 +206,70 @@ export class GatewayClient {
     };
   }
 
+  /**
+   * Send the connect (auth/hello) request after receiving connect.challenge.
+   */
+  private sendConnectRequest() {
+    if (!this.ws) return;
+
+    const id = generateId();
+    const message = JSON.stringify({
+      type: 'req',
+      id,
+      method: 'connect',
+      params: {
+        minProtocol: 3,
+        maxProtocol: 3,
+        client: {
+          id: 'agentbox-webchat',
+          version: '1.0.0',
+          platform: 'web',
+          mode: 'webchat',
+          instanceId: CLIENT_INSTANCE_ID,
+        },
+        role: 'operator.admin',
+        scopes: ['operator.admin', 'operator.approvals', 'operator.pairing'],
+        caps: [],
+        auth: {
+          token: this.token,
+        },
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'agentbox/1.0',
+        locale: typeof navigator !== 'undefined' ? navigator.language : 'en',
+      },
+    });
+
+    // Register pending RPC for the connect response
+    const timer = setTimeout(() => {
+      this.pendingRpcs.delete(id);
+      this.connectPromiseReject?.(new Error('Connect handshake timeout'));
+      this.connectPromiseResolve = null;
+      this.connectPromiseReject = null;
+    }, 15000);
+
+    this.pendingRpcs.set(id, {
+      resolve: (result: unknown) => {
+        // Hello response received — we are connected
+        const payload = result as Record<string, unknown> | undefined;
+        if (payload?.snapshot) {
+          this.snapshot = payload.snapshot as Record<string, unknown>;
+        }
+        this.setStatus('connected');
+        this.reconnectDelay = 1000;
+        this.connectPromiseResolve?.();
+        this.connectPromiseResolve = null;
+        this.connectPromiseReject = null;
+      },
+      reject: (error: Error) => {
+        this.connectPromiseReject?.(error);
+        this.connectPromiseResolve = null;
+        this.connectPromiseReject = null;
+      },
+      timer,
+    });
+
+    this.ws.send(message);
+  }
+
   private handleMessage(raw: string | ArrayBuffer | Blob) {
     if (typeof raw !== 'string') return;
 
@@ -199,28 +280,40 @@ export class GatewayClient {
       return;
     }
 
-    // JSON-RPC response (has id)
-    if ('id' in msg && typeof msg.id === 'number') {
+    const msgType = msg.type as string | undefined;
+
+    // Handle response messages: {type: "res", id, ok, payload, error}
+    if (msgType === 'res' && typeof msg.id === 'string') {
       const pending = this.pendingRpcs.get(msg.id);
       if (pending) {
         clearTimeout(pending.timer);
         this.pendingRpcs.delete(msg.id);
-        if ('error' in msg && msg.error) {
-          const err = msg.error as { message?: string; code?: number };
-          pending.reject(new Error(err.message || 'RPC error'));
+        if (msg.ok) {
+          pending.resolve(msg.payload);
         } else {
-          pending.resolve(msg.result);
+          const err = msg.error as { message?: string } | undefined;
+          pending.reject(new Error(err?.message || 'RPC error'));
         }
       }
       return;
     }
 
-    // Streaming event / notification (no id)
-    if ('method' in msg || 'type' in msg) {
+    // Handle event messages: {type: "event", event, payload, seq}
+    if (msgType === 'event') {
+      const eventName = msg.event as string;
+      const payload = (msg.payload || {}) as Record<string, unknown>;
+
+      // Special handling: connect.challenge triggers the auth handshake
+      if (eventName === 'connect.challenge') {
+        this.sendConnectRequest();
+        return;
+      }
+
+      // Convert to GatewayEvent and emit to listeners
       const event: GatewayEvent = {
-        type: (msg.method || msg.type) as string,
-        data: (msg.params || msg.data || msg) as Record<string, unknown>,
-        runId: msg.runId as string | undefined,
+        type: eventName,
+        data: payload,
+        sessionKey: payload.sessionKey as string | undefined,
       };
       this.eventListeners.forEach((cb) => cb(event));
     }
@@ -259,7 +352,11 @@ function url2ws(url: string): string {
   if (url.startsWith('ws://') || url.startsWith('wss://')) return url;
   if (url.startsWith('https://')) return url.replace('https://', 'wss://');
   if (url.startsWith('http://')) return url.replace('http://', 'ws://');
-  return `ws://${url}`;
+  // Default to ws:// for localhost, wss:// otherwise
+  if (url.includes('localhost') || url.includes('127.0.0.1')) {
+    return `ws://${url}`;
+  }
+  return `wss://${url}`;
 }
 
 /** Singleton instance */

@@ -67,7 +67,6 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const activeRunIdRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -103,7 +102,9 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
 
   const loadHistory = useCallback(async () => {
     try {
-      const result = await send<{ messages?: Array<{ role: string; content: string; timestamp?: string }> }>('chat.history', {});
+      const result = await send<{ messages?: Array<{ role: string; content: string; timestamp?: string }> }>('chat.history', {
+        sessionKey: 'agent:main:main',
+      });
       if (result?.messages && result.messages.length > 0) {
         const parsed: ChatMessage[] = result.messages.map((msg, i) => ({
           id: `h${i}`,
@@ -122,31 +123,35 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
   }, [send]);
 
   const handleStreamEvent = useCallback((event: GatewayEvent) => {
-    const { type, data, runId } = event;
+    const { type, data } = event;
 
-    // Only process events for the active run
-    if (activeRunIdRef.current && runId && runId !== activeRunIdRef.current) return;
+    // Only handle "chat" events
+    if (type !== 'chat') return;
 
-    switch (type) {
-      case 'chat.text':
-      case 'chat.delta':
-      case 'chat.chunk': {
-        const text = (data.text || data.content || data.delta || '') as string;
+    const kind = data.kind as string | undefined;
+    const sessionKey = data.sessionKey as string | undefined;
+
+    // Only process events for the expected session
+    if (sessionKey && sessionKey !== 'agent:main:main') return;
+
+    switch (kind) {
+      case 'chunk': {
+        const text = (data.text || '') as string;
         if (text) {
           setStreamingText((prev) => prev + text);
         }
         break;
       }
-      case 'chat.done':
-      case 'chat.end':
-      case 'chat.complete': {
-        // Finalize the streaming message
-        setStreamingText((prev) => {
-          if (prev) {
+      case 'final': {
+        // Finalize the streaming message with the full response text
+        const finalText = (data.text || '') as string;
+        setStreamingText(() => {
+          const msgText = finalText || '';
+          if (msgText) {
             const finalMsg: ChatMessage = {
               id: `m${Date.now()}`,
               sender: 'agent',
-              text: prev,
+              text: msgText,
               time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
             };
             setMessages((msgs) => [...msgs, finalMsg]);
@@ -154,13 +159,20 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
           return '';
         });
         setIsTyping(false);
-        activeRunIdRef.current = null;
         break;
       }
-      case 'chat.error': {
+      case 'error': {
         setIsTyping(false);
         setStreamingText('');
-        activeRunIdRef.current = null;
+        // Optionally show the error
+        const errorText = (data.error || 'Unknown error') as string;
+        const errorMsg: ChatMessage = {
+          id: `m${Date.now()}`,
+          sender: 'agent',
+          text: `⚠️ ${errorText}`,
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        };
+        setMessages((msgs) => [...msgs, errorMsg]);
         break;
       }
     }
@@ -184,10 +196,7 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
     if (isConnected) {
       // Live mode: send via gateway
       try {
-        const result = await send<{ runId?: string }>('chat.send', { message: messageText });
-        if (result?.runId) {
-          activeRunIdRef.current = result.runId;
-        }
+        await send('chat.send', { message: messageText, sessionKey: 'agent:main:main' });
       } catch {
         setIsTyping(false);
         // Add error message

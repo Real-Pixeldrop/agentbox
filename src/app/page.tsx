@@ -29,7 +29,7 @@ import HomePage from '@/components/HomePage';
 import TeamsPage from '@/components/TeamsPage';
 import TemplatesPage from '@/components/TemplatesPage';
 import AgentWizard from '@/components/AgentWizard';
-import AgentDetailPanel from '@/components/AgentDetailPanel';
+import AgentDetailReal from '@/components/AgentDetailReal';
 import AgentConversation from '@/components/AgentConversation';
 import SettingsPage from '@/components/SettingsPage';
 import SkillsPage from '@/components/SkillsPage';
@@ -417,9 +417,27 @@ export default function AgentBoxDashboard() {
 
     // Agent detail (settings) view
     if (currentPage === 'agent-detail' && selectedAgent) {
+      // Find the corresponding Supabase agent
+      const supabaseAgent = supabaseAgents.find(a => a.id === selectedAgent.supabaseId);
+      if (!supabaseAgent) {
+        return (
+          <div className="flex items-center justify-center h-screen bg-[#0B0F1A] text-slate-200">
+            <div className="text-center">
+              <p className="text-lg font-medium mb-2">Agent non trouvé</p>
+              <button 
+                onClick={() => setCurrentPage('agents')}
+                className="text-blue-400 hover:text-blue-300"
+              >
+                Retour aux agents
+              </button>
+            </div>
+          </div>
+        );
+      }
+      
       return (
-        <AgentDetailPanel
-          agent={selectedAgent}
+        <AgentDetailReal
+          agent={supabaseAgent}
           onBack={() => {
             setShowAgentDetail(false);
             setCurrentPage('agent-conversation');

@@ -183,18 +183,6 @@ export default function AgentBoxDashboard() {
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
 
-  // Auth guard
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#0A0A0C] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-500"></div>
-      </div>
-    );
-  }
-  if (!user) {
-    return <AuthPage />;
-  }
-
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   // Load agents from gateway or use mock data
@@ -651,6 +639,18 @@ export default function AgentBoxDashboard() {
       </div>
     </>
   );
+
+  // Auth guard - after all hooks
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0C] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-500"></div>
+      </div>
+    );
+  }
+  if (!user) {
+    return <AuthPage />;
+  }
 
   return (
     <div className="flex min-h-screen bg-[#0B0F1A] text-slate-200 font-sans selection:bg-blue-500/30">

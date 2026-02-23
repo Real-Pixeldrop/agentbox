@@ -22,7 +22,9 @@ import {
   AlertCircle,
   CheckCircle,
   CalendarDays,
+  CalendarClock,
   RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -51,6 +53,8 @@ interface AgentSettingsPanelProps {
     gatewayAgentId?: string;
   };
   sessionKey: string;
+  /** Navigate to the global scheduled actions page */
+  onNavigateToScheduledActions?: () => void;
 }
 
 interface MemoryFile {
@@ -81,7 +85,7 @@ type SettingsTab = 'general' | 'tools' | 'memory' | 'skills' | 'crons' | 'channe
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AgentSettingsPanel({ open, onClose, agent, sessionKey }: AgentSettingsPanelProps) {
+export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, onNavigateToScheduledActions }: AgentSettingsPanelProps) {
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
 
@@ -1137,6 +1141,21 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey }:
             </div>
           )}
         </>
+      )}
+
+      {/* View all scheduled actions link */}
+      {onNavigateToScheduledActions && (
+        <button
+          onClick={() => {
+            onClose();
+            onNavigateToScheduledActions();
+          }}
+          className="flex items-center gap-2 w-full mt-4 px-3 py-2.5 rounded-lg text-xs font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/5 border border-blue-500/10 hover:border-blue-500/20 transition-all"
+        >
+          <CalendarClock className="w-3.5 h-3.5" />
+          {t.scheduledActions.viewAll}
+          <ExternalLink className="w-3 h-3 ml-auto" />
+        </button>
       )}
     </div>
   );

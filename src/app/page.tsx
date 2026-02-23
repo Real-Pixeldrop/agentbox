@@ -853,6 +853,10 @@ export default function AgentBoxDashboard() {
             schedule: settingsPanelAgent.schedule,
           }}
           sessionKey={settingsPanelAgent.sessionKey || `agent:${settingsPanelAgent.name.toLowerCase().replace(/\s+/g, '-')}:main`}
+          onNavigateToScheduledActions={() => {
+            setSettingsPanelAgent(null);
+            handleNavigate('scheduled-actions');
+          }}
         />
       )}
 

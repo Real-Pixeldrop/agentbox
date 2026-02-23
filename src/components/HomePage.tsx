@@ -175,22 +175,22 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-10 w-full max-w-3xl px-6 flex flex-col items-center"
+        className="relative z-10 w-full max-w-3xl px-4 sm:px-6 flex flex-col items-center"
       >
         
         {/* LOGO / ACCENT */}
-        <motion.div variants={itemVariants} className="mb-8 flex items-center gap-3">
+        <motion.div variants={itemVariants} className="mb-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-2">
           <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-[#1E293B] bg-[#131825]/50 backdrop-blur-sm">
             <div className={cn(
-              "w-2 h-2 rounded-full",
+              "w-2 h-2 rounded-full shrink-0",
               isConnected ? "bg-green-500 animate-pulse" : "bg-slate-500"
             )} />
-            <span className="text-[10px] uppercase tracking-[0.2em] font-medium text-slate-400">{t.home.badge}</span>
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.15em] sm:tracking-[0.2em] font-medium text-slate-400">{t.home.badge}</span>
           </div>
           {modelName && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#1E293B] bg-[#131825]/50 backdrop-blur-sm">
-              <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-              <span className="text-[10px] font-medium text-slate-500">{formatModelName(modelName)}</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+              <span className="text-[9px] sm:text-[10px] font-medium text-slate-500">{formatModelName(modelName)}</span>
             </div>
           )}
         </motion.div>
@@ -198,8 +198,7 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
         {/* HERO TITLE */}
         <motion.h1 
           variants={itemVariants}
-          className="text-5xl md:text-6xl font-semibold tracking-tight text-center mb-10"
-          style={{ whiteSpace: 'nowrap' }}
+          className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-center mb-10 px-2"
         >
           <span className="bg-gradient-to-b from-white via-white to-slate-500 bg-clip-text text-transparent">
             {t.home.title}
@@ -327,7 +326,7 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={selectedAgent ? `${t.home.talkTo || 'Talk to'} ${selectedAgent.name}...` : t.home.placeholder}
-              className="w-full bg-transparent border-none outline-none py-3 px-2 text-lg text-slate-100 placeholder:text-slate-600"
+              className="w-full bg-transparent border-none outline-none py-3 px-2 text-sm sm:text-lg text-slate-100 placeholder:text-slate-600"
             />
 
             <div className="flex items-center gap-1.5 pr-2">
@@ -355,13 +354,13 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
         {/* SUGGESTION PILLS */}
         <motion.div 
           variants={itemVariants}
-          className="flex flex-wrap justify-center gap-3"
+          className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 w-full sm:w-auto px-2 sm:px-0"
         >
           {suggestions.map((item) => (
             <button
               key={item.id}
               onClick={() => handleSuggestionClick(item.text)}
-              className="group flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#131825] border border-[#1E293B] hover:border-slate-600 hover:bg-[#1c2436] transition-all duration-200 text-sm text-slate-400 hover:text-slate-200 shadow-sm hover:shadow-md"
+              className="group flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#131825] border border-[#1E293B] hover:border-slate-600 hover:bg-[#1c2436] transition-all duration-200 text-sm text-slate-400 hover:text-slate-200 shadow-sm hover:shadow-md text-left"
             >
               <span className="opacity-80 group-hover:opacity-100 transition-opacity">
                 {item.icon}
@@ -378,7 +377,7 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1, duration: 1 }}
-        className="absolute bottom-8 text-[11px] font-medium tracking-widest text-slate-600 uppercase flex items-center gap-4"
+        className="absolute bottom-8 text-[11px] font-medium tracking-widest text-slate-600 uppercase hidden sm:flex items-center gap-4"
       >
         <div className="flex items-center gap-1.5">
           <kbd className="px-1.5 py-0.5 rounded border border-slate-800 bg-slate-900/50 font-sans">⌘</kbd>

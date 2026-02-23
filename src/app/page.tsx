@@ -88,6 +88,8 @@ interface AgentData {
   sessionKey?: string;
   /** Supabase agent ID (uuid) */
   supabaseId?: string;
+  /** Gateway agent slug (e.g. "david") */
+  gatewayAgentId?: string;
 }
 
 // Demo agents shown when gateway is not connected AND no Supabase agents
@@ -144,6 +146,7 @@ function supabaseToAgentData(agent: SupabaseAgent, index: number, t: Record<stri
     tokenLimit: 5000,
     sessionKey: agent.gateway_session_key || `agent:${agent.gateway_agent_id || agent.name.toLowerCase().replace(/\s+/g, '-')}:main`,
     supabaseId: agent.id,
+    gatewayAgentId: agent.gateway_agent_id || agent.name.toLowerCase().replace(/\s+/g, '-'),
   };
 }
 

@@ -63,6 +63,7 @@ interface AgentConversationProps {
     active: boolean;
     channels: string[];
     schedule: string;
+    gatewayAgentId?: string;
   };
   /** Session key for gateway communication */
   sessionKey: string;

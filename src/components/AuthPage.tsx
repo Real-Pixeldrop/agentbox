@@ -3,20 +3,20 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Bot, Zap, Globe, Shield } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Bot, Globe, Shield, Box } from 'lucide-react';
 
 const rotatingTexts = [
   { title: "Déployez vos agents IA en quelques minutes", subtitle: "WhatsApp, Email, Slack et plus — aucun code nécessaire" },
   { title: "Votre équipe, décuplée", subtitle: "Chaque agent gère un rôle : support, ventes, planification, opérations" },
   { title: "Un dashboard, contrôle total", subtitle: "Suivez les conversations, les coûts et la performance en temps réel" },
-  { title: "Infrastructure ouverte", subtitle: "Propulsé par Claude, déployé sur votre propre serveur" },
+  { title: "Sécurité maximale", subtitle: "Vos données restent chez vous, chiffrées et isolées" },
 ];
 
 const rotatingTextsEn = [
   { title: "Deploy AI agents in minutes", subtitle: "Connect to WhatsApp, Email, Slack and more — no code required" },
   { title: "Your team, amplified", subtitle: "Each agent handles a role: support, sales, scheduling, operations" },
   { title: "One dashboard, full control", subtitle: "Monitor conversations, costs, and performance in real time" },
-  { title: "Built on open infrastructure", subtitle: "Powered by Claude, deployed on your own gateway" },
+  { title: "Maximum security", subtitle: "Your data stays with you, encrypted and isolated" },
 ];
 
 type Lang = 'FR' | 'EN';
@@ -46,9 +46,12 @@ const labels = {
     passwordMin: 'Le mot de passe doit contenir au moins 6 caractères',
     accountCreated: 'Compte créé ! Vérifiez votre email pour confirmer.',
     unexpectedError: 'Une erreur inattendue est survenue',
-    poweredBy: 'Propulsé par Claude',
-    multiChannel: 'Multi-canal',
-    yourInfra: 'Votre infrastructure',
+    e2eEncryption: 'Chiffrement de bout en bout',
+    e2eEncryptionSub: 'AES-256',
+    isolatedWorkspace: 'Espace isolé',
+    isolatedWorkspaceSub: 'Environnement privé sandboxé',
+    sandboxedExecution: 'Exécution sandboxée',
+    sandboxedExecutionSub: 'Aucun accès réseau, limites de ressources',
   },
   EN: {
     welcomeBack: 'Welcome back',
@@ -74,9 +77,12 @@ const labels = {
     passwordMin: 'Password must be at least 6 characters',
     accountCreated: 'Account created! Check your email to confirm.',
     unexpectedError: 'An unexpected error occurred',
-    poweredBy: 'Powered by Claude',
-    multiChannel: 'Multi-channel',
-    yourInfra: 'Your infrastructure',
+    e2eEncryption: 'End-to-end encryption',
+    e2eEncryptionSub: 'AES-256',
+    isolatedWorkspace: 'Isolated workspace',
+    isolatedWorkspaceSub: 'Private sandboxed environment',
+    sandboxedExecution: 'Sandboxed execution',
+    sandboxedExecutionSub: 'No network access, resource limits',
   },
 };
 
@@ -169,7 +175,7 @@ export default function AuthPage() {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80')`,
           }}
         />
         {/* Dark overlay */}
@@ -230,16 +236,25 @@ export default function AuthPage() {
             {/* Trust badges */}
             <div className="flex flex-wrap gap-3">
               <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/5">
-                <Zap className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm text-slate-300">{t.poweredBy}</span>
+                <Lock className="w-4 h-4 text-emerald-400" />
+                <div className="flex flex-col">
+                  <span className="text-sm text-slate-300">{t.e2eEncryption}</span>
+                  <span className="text-[10px] text-slate-500">{t.e2eEncryptionSub}</span>
+                </div>
               </div>
               <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/5">
-                <Globe className="w-4 h-4 text-blue-400" />
-                <span className="text-sm text-slate-300">{t.multiChannel}</span>
+                <Shield className="w-4 h-4 text-blue-400" />
+                <div className="flex flex-col">
+                  <span className="text-sm text-slate-300">{t.isolatedWorkspace}</span>
+                  <span className="text-[10px] text-slate-500">{t.isolatedWorkspaceSub}</span>
+                </div>
               </div>
               <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/5">
-                <Shield className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm text-slate-300">{t.yourInfra}</span>
+                <Box className="w-4 h-4 text-violet-400" />
+                <div className="flex flex-col">
+                  <span className="text-sm text-slate-300">{t.sandboxedExecution}</span>
+                  <span className="text-[10px] text-slate-500">{t.sandboxedExecutionSub}</span>
+                </div>
               </div>
             </div>
           </div>

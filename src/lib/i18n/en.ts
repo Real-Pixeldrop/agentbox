@@ -26,6 +26,12 @@ const en = {
     suggestion3: "What emails do I need to respond to?",
     commands: "Commands",
     searchLogs: "Search Logs",
+    auto: "Auto",
+    autoRoute: "Auto-routing",
+    autoRouteDesc: "Routes to the best agent",
+    yourAgents: "Your agents",
+    noAgents: "No active agents",
+    talkTo: "Talk to",
   },
   // Agents page
   agents: {

@@ -97,6 +97,50 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, sessionKey]);
 
+  // Check for initial message from Home page
+  useEffect(() => {
+    if (!historyLoaded) return;
+    const initialMessage = sessionStorage.getItem('agentbox_initial_message');
+    if (initialMessage) {
+      sessionStorage.removeItem('agentbox_initial_message');
+      // Auto-send the message
+      const userMsg: ChatMessage = {
+        id: `m${Date.now()}`,
+        sender: 'user',
+        text: initialMessage,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      setIsTyping(true);
+      setStreamingText('');
+
+      if (isConnected) {
+        send('chat.send', { message: initialMessage, sessionKey }).catch(() => {
+          setIsTyping(false);
+          const errorMsg: ChatMessage = {
+            id: `m${Date.now() + 1}`,
+            sender: 'agent',
+            text: "⚠️ Failed to send message. Please check the gateway connection.",
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          };
+          setMessages((prev) => [...prev, errorMsg]);
+        });
+      } else {
+        setTimeout(() => {
+          const agentMsg: ChatMessage = {
+            id: `m${Date.now() + 1}`,
+            sender: 'agent',
+            text: "Understood. I'll take care of it right away and update you once it's done.",
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          };
+          setMessages((prev) => [...prev, agentMsg]);
+          setIsTyping(false);
+        }, 1500);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyLoaded]);
+
   // Listen for streaming events
   useEffect(() => {
     if (!isConnected) return;

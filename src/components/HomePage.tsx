@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Paperclip, 
   Mic, 
@@ -9,7 +9,10 @@ import {
   AlertCircle, 
   Calendar, 
   Mail,
-  Sparkles
+  ChevronDown,
+  Bot,
+  Check,
+  Sparkles,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -17,6 +20,19 @@ import { useI18n } from '@/lib/i18n';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+interface HomeAgent {
+  id: number;
+  name: string;
+  photo: string;
+  active: boolean;
+  sessionKey?: string;
+}
+
+interface HomePageProps {
+  agents?: HomeAgent[];
+  onSendMessage?: (message: string, agentId: number | null) => void;
 }
 
 const containerVariants = {
@@ -42,9 +58,48 @@ const itemVariants = {
   },
 };
 
-export default function HomePage() {
+export default function HomePage({ agents = [], onSendMessage }: HomePageProps) {
   const [inputValue, setInputValue] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState<HomeAgent | null>(null);
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
+
+  const activeAgents = agents.filter(a => a.active);
+
+  // Close picker on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowAgentPicker(false);
+      }
+    };
+    if (showAgentPicker) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [showAgentPicker]);
+
+  const handleSend = () => {
+    if (!inputValue.trim()) return;
+    if (onSendMessage) {
+      onSendMessage(inputValue.trim(), selectedAgent?.id ?? null);
+    }
+    setInputValue("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleSuggestionClick = (text: string) => {
+    setInputValue(text);
+    inputRef.current?.focus();
+  };
 
   const suggestions = [
     {
@@ -111,16 +166,108 @@ export default function HomePage() {
           <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-[22px] blur opacity-0 group-focus-within:opacity-100 transition duration-500" />
           
           <div className="relative flex items-center bg-[#131825] border border-[#1E293B] rounded-[20px] p-2 shadow-2xl transition-all duration-300 group-focus-within:border-blue-500/50 group-focus-within:shadow-[0_0_30px_rgba(59,130,246,0.1)]">
-            <div className="pl-4 pr-2 text-slate-500">
-              <Sparkles className="w-5 h-5 opacity-50 group-focus-within:text-blue-400 group-focus-within:opacity-100 transition-colors" />
+            
+            {/* Agent Selector */}
+            <div className="relative pl-2 pr-1" ref={pickerRef}>
+              <button
+                onClick={() => setShowAgentPicker(!showAgentPicker)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all text-sm",
+                  selectedAgent 
+                    ? "bg-blue-500/15 text-blue-400 hover:bg-blue-500/25" 
+                    : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300"
+                )}
+              >
+                {selectedAgent ? (
+                  <>
+                    <img src={selectedAgent.photo} alt="" className="w-5 h-5 rounded-full object-cover" />
+                    <span className="font-medium max-w-[100px] truncate">{selectedAgent.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span className="font-medium hidden sm:inline">{t.home.auto || 'Auto'}</span>
+                  </>
+                )}
+                <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+              </button>
+
+              {/* Agent Picker Dropdown */}
+              <AnimatePresence>
+                {showAgentPicker && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 top-full mt-2 w-64 bg-[#131825] border border-slate-700/80 rounded-xl shadow-2xl shadow-black/60 overflow-hidden z-50"
+                  >
+                    {/* Auto option */}
+                    <button
+                      onClick={() => { setSelectedAgent(null); setShowAgentPicker(false); }}
+                      className={cn(
+                        "flex items-center gap-3 w-full px-4 py-3 text-sm transition-colors",
+                        !selectedAgent 
+                          ? "bg-blue-500/10 text-blue-400" 
+                          : "text-slate-300 hover:bg-slate-800/50"
+                      )}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-blue-400" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium">{t.home.autoRoute || 'Auto-routing'}</div>
+                        <div className="text-[11px] text-slate-500">{t.home.autoRouteDesc || 'Routes to the best agent'}</div>
+                      </div>
+                      {!selectedAgent && <Check className="w-4 h-4 text-blue-400" />}
+                    </button>
+
+                    {activeAgents.length > 0 && (
+                      <div className="border-t border-slate-800/60">
+                        <div className="px-4 py-2 text-[10px] uppercase tracking-wider text-slate-600 font-medium">
+                          {t.home.yourAgents || 'Your agents'}
+                        </div>
+                        {activeAgents.map(agent => (
+                          <button
+                            key={agent.id}
+                            onClick={() => { setSelectedAgent(agent); setShowAgentPicker(false); }}
+                            className={cn(
+                              "flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-colors",
+                              selectedAgent?.id === agent.id 
+                                ? "bg-blue-500/10 text-blue-400" 
+                                : "text-slate-300 hover:bg-slate-800/50"
+                            )}
+                          >
+                            <img src={agent.photo} alt="" className="w-7 h-7 rounded-full object-cover border border-slate-700" />
+                            <span className="flex-1 text-left font-medium truncate">{agent.name}</span>
+                            {selectedAgent?.id === agent.id && <Check className="w-4 h-4 text-blue-400" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {activeAgents.length === 0 && (
+                      <div className="px-4 py-4 text-center text-sm text-slate-500 border-t border-slate-800/60">
+                        <Bot className="w-5 h-5 mx-auto mb-1.5 opacity-50" />
+                        <div>{t.home.noAgents || 'No active agents'}</div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-slate-700/50 mx-1" />
             
             <input 
+              ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder={t.home.placeholder}
-              className="w-full bg-transparent border-none outline-none py-3 text-lg text-slate-100 placeholder:text-slate-600"
+              onKeyDown={handleKeyDown}
+              placeholder={selectedAgent ? `${t.home.talkTo || 'Talk to'} ${selectedAgent.name}...` : t.home.placeholder}
+              className="w-full bg-transparent border-none outline-none py-3 px-2 text-lg text-slate-100 placeholder:text-slate-600"
             />
 
             <div className="flex items-center gap-1.5 pr-2">
@@ -130,12 +277,15 @@ export default function HomePage() {
               <button className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all active:scale-95">
                 <Mic className="w-5 h-5" />
               </button>
-              <button className={cn(
-                "p-2.5 rounded-xl transition-all duration-300 active:scale-90",
-                inputValue.length > 0 
-                  ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
-                  : "bg-slate-800/50 text-slate-500"
-              )}>
+              <button 
+                onClick={handleSend}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all duration-300 active:scale-90",
+                  inputValue.length > 0 
+                    ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:bg-blue-500" 
+                    : "bg-slate-800/50 text-slate-500"
+                )}
+              >
                 <ArrowUp className="w-5 h-5" />
               </button>
             </div>
@@ -150,7 +300,7 @@ export default function HomePage() {
           {suggestions.map((item) => (
             <button
               key={item.id}
-              onClick={() => setInputValue(item.text)}
+              onClick={() => handleSuggestionClick(item.text)}
               className="group flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#131825] border border-[#1E293B] hover:border-slate-600 hover:bg-[#1c2436] transition-all duration-200 text-sm text-slate-400 hover:text-slate-200 shadow-sm hover:shadow-md"
             >
               <span className="opacity-80 group-hover:opacity-100 transition-opacity">

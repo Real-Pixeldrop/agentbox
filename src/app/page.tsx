@@ -349,7 +349,30 @@ export default function AgentBoxDashboard() {
 
     switch (currentPage) {
       case 'home':
-        return <HomePage />;
+        return (
+          <HomePage 
+            agents={agents.map(a => ({ id: a.id, name: a.name, photo: a.photo, active: a.active, sessionKey: a.sessionKey }))} 
+            onSendMessage={(message, agentId) => {
+              // If a specific agent is selected, open their conversation
+              // If auto (null), pick the first active agent or default
+              const targetId = agentId ?? agents.find(a => a.active)?.id ?? agents[0]?.id;
+              if (targetId) {
+                const agent = agents.find(a => a.id === targetId);
+                if (agent) {
+                  setSelectedAgentId(agent.id);
+                  if (agent.sessionKey) {
+                    setCurrentSessionKey(agent.sessionKey);
+                  } else {
+                    setCurrentSessionKey(`agent:${agent.name.toLowerCase().replace(/\s+/g, '-')}:main`);
+                  }
+                  setCurrentPage('agent-conversation');
+                  // Store initial message for the conversation to pick up
+                  sessionStorage.setItem('agentbox_initial_message', message);
+                }
+              }
+            }}
+          />
+        );
       case 'teams':
         return <TeamsPage />;
       case 'templates':

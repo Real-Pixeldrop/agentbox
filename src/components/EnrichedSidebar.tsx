@@ -15,6 +15,7 @@ import {
   MoreVertical,
   LogOut,
   Puzzle,
+  CalendarClock,
   X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -25,6 +26,7 @@ import { useGateway } from '@/lib/GatewayContext';
 import { useAuth } from '@/lib/AuthContext';
 import type { Team } from '@/lib/supabase';
 import ConnectionStatus from './ConnectionStatus';
+import AgentAvatar from './AgentAvatar';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -110,20 +112,7 @@ const AgentLink = ({ name, avatarUrl, isAgentActive, onClick }: { name: string; 
     onClick={onClick}
     className="group flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800/30 hover:text-slate-200 transition-all duration-200"
   >
-    <div className="relative h-6 w-6 shrink-0">
-      <div className="h-6 w-6 overflow-hidden rounded-full ring-1 ring-slate-700 group-hover:ring-slate-500 transition-all">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
-        ) : (
-          <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[10px] font-bold">
-            {name.charAt(0).toUpperCase()}
-          </div>
-        )}
-      </div>
-      {isAgentActive && (
-        <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[#0F1219] shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
-      )}
-    </div>
+    <AgentAvatar name={name} photo={avatarUrl || undefined} size="xs" active={isAgentActive} showStatus={!!isAgentActive} />
     <span className="truncate">{name}</span>
   </button>
 );
@@ -169,6 +158,7 @@ export default function EnrichedSidebar({
     { id: 'templates', label: t.nav.templates, icon: LayoutGrid },
     { id: 'teams', label: t.nav.teams, icon: UsersRound },
     { id: 'activity', label: t.nav.activity, icon: BarChart3 },
+    { id: 'scheduled-actions', label: t.nav.scheduledActions, icon: CalendarClock },
   ];
 
   // Use real favorites from parent only - no demo data
@@ -292,13 +282,7 @@ export default function EnrichedSidebar({
               {recentAgents.map((agent, i) => (
                 <div key={i} className="flex items-center justify-between group cursor-pointer" onClick={() => handleNav('agents')}>
                   <div className="flex items-center gap-3">
-                    {agent.avatar ? (
-                      <img src={agent.avatar} alt="" className="h-5 w-5 rounded-full grayscale group-hover:grayscale-0 transition-all" />
-                    ) : (
-                      <div className="h-5 w-5 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[8px] font-bold">
-                        {agent.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <AgentAvatar name={agent.name} photo={agent.avatar || undefined} size="xs" />
                     <span className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors">{agent.name}</span>
                   </div>
                   <span className="text-[10px] text-slate-700 font-mono">{agent.time}</span>

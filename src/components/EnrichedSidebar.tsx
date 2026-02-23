@@ -13,7 +13,8 @@ import {
   Plus,
   Box,
   MoreVertical,
-  LogOut
+  LogOut,
+  Puzzle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
@@ -135,42 +136,35 @@ export default function EnrichedSidebar({
 }: EnrichedSidebarProps) {
   const { t, language, toggleLanguage } = useI18n();
   const { isConnected } = useGateway();
-  const { signOut } = useAuth();
+  const { signOut, user, profile } = useAuth();
+  const [showProfileMenu, setShowProfileMenu] = React.useState(false);
+  
+  // Compute user display name and initial from Supabase data
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
+  const userInitial = (displayName[0] || 'U').toUpperCase();
+  const userPlan = profile?.plan || 'free';
+  const planLabel = userPlan === 'pro' ? t.sidebar.proPlan : userPlan === 'enterprise' ? 'ENTERPRISE' : 'FREE';
   
   const mainNavItems = [
     { id: 'home', label: t.nav.home, icon: House },
     { id: 'agents', label: t.nav.myAgents, icon: Users, badge: agents.length > 0 ? String(agents.length) : undefined },
+    { id: 'skills', label: t.nav.skills, icon: Puzzle },
     { id: 'templates', label: t.nav.templates, icon: LayoutGrid },
     { id: 'teams', label: t.nav.teams, icon: UsersRound },
     { id: 'activity', label: t.nav.activity, icon: BarChart3 },
-    { id: 'settings', label: t.nav.settings, icon: Settings },
   ];
 
-  // When connected: use real favorites from parent. When disconnected: show demo defaults
-  const defaultFavorites = [
-    { id: 'fav1', name: 'Alexandre Dubois', photo: 'https://randomuser.me/api/portraits/men/32.jpg', active: true },
-    { id: 'fav2', name: 'Sarah Cohen', photo: 'https://randomuser.me/api/portraits/women/68.jpg', active: true },
-    { id: 'fav3', name: 'Marie Laurent', photo: 'https://randomuser.me/api/portraits/women/44.jpg', active: true },
-  ];
-
-  const favorites = isConnected
-    ? (favoriteAgents.length > 0 ? favoriteAgents : [])
-    : (favoriteAgents.length > 0 ? favoriteAgents : defaultFavorites);
+  // Use real favorites from parent only - no demo data
+  const favorites = favoriteAgents.length > 0 ? favoriteAgents : [];
 
   const teams = [
     { id: 'team1', name: 'Sales Team', color: 'bg-emerald-500', count: 3 },
-    { id: 'team2', name: 'Support Team', color: 'bg-amber-500', count: 2 },
   ];
 
-  // When connected: show real agents as recent. When disconnected: show demo
-  const recentAgentsDemo = [
-    { name: 'Hugo Martin', avatar: 'https://randomuser.me/api/portraits/men/75.jpg', time: '2m' },
-    { name: 'Sarah Cohen', avatar: 'https://randomuser.me/api/portraits/women/68.jpg', time: '1h' },
-  ];
-
+  // Show real agents as recent only when connected
   const recentAgents = isConnected
     ? agents.slice(0, 3).map(a => ({ name: a.name, avatar: a.photo, time: a.active ? '●' : '—' }))
-    : recentAgentsDemo;
+    : [];
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-[240px] flex-col border-r border-slate-800/50 bg-[#0F1219] text-slate-200 antialiased selection:bg-blue-500/30">
@@ -279,27 +273,38 @@ export default function EnrichedSidebar({
           </button>
         </div>
 
-        {/* User Profile */}
-        <div className="flex items-center justify-between group cursor-pointer">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="h-9 w-9 overflow-hidden rounded-full ring-2 ring-slate-800 group-hover:ring-blue-500/50 transition-all">
-                <img 
-                  src="https://randomuser.me/api/portraits/men/91.jpg" 
-                  alt="Akli G." 
-                  className="h-full w-full object-cover"
-                />
+        {/* User Profile with 3-dot menu */}
+        <div className="relative">
+          <div className="flex items-center justify-between group cursor-pointer" onClick={() => setShowProfileMenu(!showProfileMenu)}>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="h-9 w-9 flex items-center justify-center rounded-full ring-2 ring-slate-800 group-hover:ring-blue-500/50 transition-all bg-gradient-to-br from-blue-500 to-blue-700">
+                  <span className="text-sm font-bold text-white select-none">{userInitial}</span>
+                </div>
+                <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0F1219]" />
               </div>
-              <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0F1219]" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">Akli G.</span>
-              <div className="flex items-center gap-1.5">
-                <span className="rounded bg-blue-500/10 px-1 py-0.5 text-[9px] font-bold text-blue-400 ring-1 ring-inset ring-blue-500/20">{t.sidebar.proPlan}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors truncate max-w-[120px]">{displayName}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded bg-blue-500/10 px-1 py-0.5 text-[9px] font-bold text-blue-400 ring-1 ring-inset ring-blue-500/20">{planLabel}</span>
+                </div>
               </div>
             </div>
+            <MoreVertical className="h-4 w-4 text-slate-600 group-hover:text-slate-300" />
           </div>
-          <MoreVertical className="h-4 w-4 text-slate-600 group-hover:text-slate-300" />
+
+          {/* Profile dropdown menu */}
+          {showProfileMenu && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#131825] border border-slate-700 rounded-lg shadow-xl z-50 py-1">
+              <button
+                onClick={() => { onNavigate('settings'); setShowProfileMenu(false); }}
+                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                <span>{t.profileMenu.settings}</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

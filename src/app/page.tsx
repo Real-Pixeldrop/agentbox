@@ -12,6 +12,7 @@ import {
   Coins,
   Users,
   X,
+  Bot,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -28,6 +29,7 @@ import AgentWizard from '@/components/AgentWizard';
 import AgentDetailPanel from '@/components/AgentDetailPanel';
 import AgentConversation from '@/components/AgentConversation';
 import SettingsPage from '@/components/SettingsPage';
+import SkillsPage from '@/components/SkillsPage';
 import ActivityPage from '@/components/ActivityPage';
 import NotificationsPanel, { type Notification } from '@/components/NotificationsPanel';
 import Toast from '@/components/Toast';
@@ -379,6 +381,8 @@ export default function AgentBoxDashboard() {
         return <TemplatesPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'skills':
+        return <SkillsPage agents={agents.map(a => ({ id: a.id, name: a.name, photo: a.photo }))} />;
       case 'activity':
         return <ActivityPage />;
       case 'agents':
@@ -441,10 +445,9 @@ export default function AgentBoxDashboard() {
           <p className="text-slate-400 text-sm">{t.agents.subtitle}</p>
         </div>
 
-        {/* Loading state - show skeletons when not connected or loading */}
-        {!agentsLoaded && (
+        {/* Loading state - show skeletons only when connected and loading */}
+        {!agentsLoaded && isConnected && (
           <div className="space-y-6">
-            {/* Show loading skeletons */}
             {[...Array(3)].map((_, i) => (
               <div key={i} className="bg-[#131825] border border-slate-800/60 rounded-xl p-6 animate-pulse">
                 <div className="flex items-start justify-between mb-4">
@@ -469,28 +472,23 @@ export default function AgentBoxDashboard() {
                 <div className="h-2 bg-slate-700/50 rounded w-3/4" />
               </div>
             ))}
-            <div className="text-center py-8">
-              <div className="text-sm text-slate-500">
-                {isConnected ? "Chargement des agents..." : "Connectez le gateway pour voir vos agents"}
-              </div>
-            </div>
           </div>
         )}
 
-        {/* Empty state for connected mode with no agents */}
-        {agentsLoaded && agents.length === 0 && isConnected && (
-          <div className="mt-4 p-12 rounded-2xl border-2 border-dashed border-slate-800/50 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mb-6 text-slate-500">
-              <Plus size={32} />
+        {/* Empty state - when agents list is empty (both connected and disconnected) */}
+        {(agentsLoaded && agents.length === 0) && (
+          <div className="mt-4 p-16 rounded-2xl border-2 border-dashed border-slate-800/50 flex flex-col items-center justify-center text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20">
+              <Bot size={40} className="text-blue-400" />
             </div>
-            <h4 className="text-xl text-white font-semibold mb-2">{t.agents.scaleTitle}</h4>
-            <p className="text-slate-500 text-sm max-w-md mb-6">{t.agents.scaleDesc}</p>
+            <h4 className="text-2xl text-white font-bold mb-3">{t.emptyState.agentsTitle}</h4>
+            <p className="text-slate-500 text-sm max-w-md mb-8 leading-relaxed">{t.emptyState.agentsDesc}</p>
             <button
               onClick={() => setShowWizard(true)}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg text-sm font-semibold transition-all active:scale-95 shadow-lg shadow-blue-900/20"
             >
               <Plus size={18} />
-              {t.agents.newAgent}
+              {t.emptyState.agentsButton}
             </button>
           </div>
         )}

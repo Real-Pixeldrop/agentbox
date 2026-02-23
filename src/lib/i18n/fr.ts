@@ -9,6 +9,7 @@ const fr: Translations = {
     teams: "Équipes",
     activity: "Activité",
     settings: "Paramètres",
+    skills: "Compétences",
   },
   // Sidebar
   sidebar: {
@@ -353,6 +354,59 @@ const fr: Translations = {
     genericError: "Une erreur est survenue. Veuillez réessayer.",
     terms: "En continuant, vous acceptez les Conditions d'utilisation et la Politique de confidentialité d'AgentBox.",
     signOut: "Déconnexion",
+  },
+  // Skills page
+  skills: {
+    title: "Compétences",
+    subtitle: "Gérez les compétences disponibles et assignez-les à vos agents.",
+    navLabel: "Compétences",
+    enabled: "Activé",
+    disabled: "Désactivé",
+    assignToAgents: "Assigner aux agents",
+    assignTitle: "Assigner la compétence aux agents",
+    noAgents: "Aucun agent disponible",
+    assigned: "Assigné",
+    // Skill names
+    webSearch: "Recherche Web",
+    webSearchDesc: "Rechercher des informations et données en temps réel sur le web.",
+    email: "Email",
+    emailDesc: "Envoyer, recevoir et gérer les emails automatiquement.",
+    calendar: "Calendrier",
+    calendarDesc: "Planifier des réunions et gérer la disponibilité.",
+    crmSkill: "CRM",
+    crmSkillDesc: "Gérer les contacts, les offres et le pipeline commercial.",
+    whatsapp: "WhatsApp",
+    whatsappDesc: "Envoyer et recevoir des messages WhatsApp.",
+    slack: "Slack",
+    slackDesc: "Interagir avec les canaux et utilisateurs Slack.",
+    github: "GitHub",
+    githubDesc: "Gérer les dépôts, les issues et les pull requests.",
+    weather: "Météo",
+    weatherDesc: "Obtenir les prévisions météo et les conditions actuelles.",
+  },
+  // Empty states
+  emptyState: {
+    agentsTitle: "Créez votre premier agent",
+    agentsDesc: "Déployez des agents IA qui travaillent de manière autonome pour vous. Commencez par créer votre premier.",
+    agentsButton: "Créer un Agent",
+  },
+  // Emergency stop
+  emergencyStop: {
+    title: "Arrêt d'urgence",
+    desc: "Redémarre le gateway si l'IA est bloquée",
+    button: "Arrêt d'urgence",
+    dangerZone: "Zone de danger",
+    dangerZoneDesc: "Actions critiques qui affectent votre système.",
+    confirmTitle: "Êtes-vous sûr ?",
+    confirmDesc: "Cela va redémarrer le gateway. Toutes les sessions d'agents actives seront interrompues.",
+    confirm: "Oui, redémarrer le gateway",
+    cancel: "Annuler",
+    restarting: "Redémarrage...",
+    success: "Signal de redémarrage du gateway envoyé",
+  },
+  // Profile menu
+  profileMenu: {
+    settings: "Paramètres",
   },
   // Toast
   toast: {

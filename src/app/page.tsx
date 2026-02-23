@@ -430,8 +430,8 @@ export default function AgentBoxDashboard() {
   const renderAgentsPage = () => (
     <>
       {/* Top Bar */}
-      <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-8 flex items-center justify-between">
-        <div className="relative w-96">
+      <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-4 sm:px-8 flex items-center justify-between">
+        <div className="relative w-full sm:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
           <input
             type="text"
@@ -475,7 +475,7 @@ export default function AgentBoxDashboard() {
       </header>
 
       {/* Content */}
-      <div className="p-8 max-w-6xl">
+      <div className="p-4 sm:p-8 max-w-6xl">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-white mb-1">{t.agents.title}</h2>
           <p className="text-slate-400 text-sm">{t.agents.subtitle}</p>
@@ -769,7 +769,7 @@ export default function AgentBoxDashboard() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-0 md:ml-[240px]">{renderContent()}</main>
+      <main className="flex-1 ml-0 md:ml-[240px] pt-14 md:pt-0">{renderContent()}</main>
 
       {showWizard && (
         <AgentWizard

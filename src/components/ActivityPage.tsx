@@ -175,23 +175,23 @@ export default function ActivityPage() {
   return (
     <div className="min-h-screen bg-[#0B0F1A] text-slate-200">
       {/* Header */}
-      <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-8 flex items-center justify-between">
+      <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-4 sm:px-8 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">{t.activity.title}</h1>
           <p className="text-xs text-slate-500">{t.activity.subtitle}</p>
         </div>
       </header>
 
-      <div className="p-8 max-w-4xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-4xl mx-auto">
         {/* Filters */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="flex items-center gap-1 p-1 bg-[#131825] border border-slate-800 rounded-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-8">
+          <div className="flex items-center gap-1 p-1 bg-[#131825] border border-slate-800 rounded-xl overflow-x-auto w-full sm:w-auto">
             {filters.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setActiveFilter(f.key)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap",
                   activeFilter === f.key
                     ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
                     : "text-slate-500 hover:text-slate-300"

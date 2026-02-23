@@ -204,6 +204,9 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
   const handleStreamEvent = useCallback((event: GatewayEvent) => {
     const { type, data } = event;
 
+    // Debug: log all gateway events to diagnose streaming issues
+    console.log('[stream]', type, data);
+
     // Only handle "chat" events
     if (type !== 'chat') return;
 
@@ -211,21 +214,39 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
     const eventSessionKey = data.sessionKey as string | undefined;
 
     // Only process events for our current session
-    if (eventSessionKey && eventSessionKey !== sessionKey) return;
+    // Use startsWith for flexible matching (e.g. "agent:my-agent:main" vs "agent:my-agent:main:sub")
+    if (eventSessionKey && eventSessionKey !== sessionKey && !eventSessionKey.startsWith(sessionKey)) return;
 
     switch (kind) {
       case 'chunk': {
-        const text = extractText(data.text || '');
+        // data.text can be a plain string (most common for chunks), an object {type: "text", text: "..."},
+        // or an array of content blocks. Handle all cases.
+        const rawText = data.text;
+        let text = '';
+        if (typeof rawText === 'string') {
+          text = rawText;
+        } else if (rawText && typeof rawText === 'object' && 'text' in rawText && typeof (rawText as Record<string, unknown>).text === 'string') {
+          text = (rawText as Record<string, unknown>).text as string;
+        } else if (Array.isArray(rawText)) {
+          text = extractText(rawText);
+        } else if (rawText !== undefined && rawText !== null) {
+          // Last resort: try extractText which handles all cases
+          text = extractText(rawText);
+        }
         if (text) {
+          setIsTyping(true);
           setStreamingText((prev) => prev + text);
         }
         break;
       }
       case 'final': {
         // Finalize the streaming message with the full response text
-        const finalText = extractText(data.text || '');
-        setStreamingText(() => {
-          const msgText = finalText || '';
+        // Use the final text if provided, otherwise use whatever was streamed
+        const finalText = extractText(data.text ?? '');
+
+        setStreamingText((prevStreamed) => {
+          // Use final text if available, otherwise fall back to accumulated streamed text
+          const msgText = finalText || prevStreamed;
           if (msgText) {
             const finalMsg: ChatMessage = {
               id: `m${Date.now()}`,
@@ -235,7 +256,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
             };
             setMessages((msgs) => [...msgs, finalMsg]);
           }
-          return '';
+          return ''; // Clear streaming text
         });
         setIsTyping(false);
         break;
@@ -243,7 +264,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
       case 'error': {
         setIsTyping(false);
         setStreamingText('');
-        const errorText = (data.error || data.text || 'Unknown error') as string;
+        const errorText = typeof data.error === 'string' ? data.error : typeof data.text === 'string' ? data.text : 'Unknown error';
         const errorMsg: ChatMessage = {
           id: `m${Date.now()}`,
           sender: 'agent',

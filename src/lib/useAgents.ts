@@ -56,6 +56,7 @@ export function useAgents() {
     name: string;
     description: string;
     tone: string;
+    language: string;
     industry: string;
     photo: string | null;
     skills: string[];
@@ -65,20 +66,34 @@ export function useAgents() {
 
     const agentId = agentData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `agent-${Date.now()}`;
     const sessionKey = `agent:${agentId}:main`;
+    const lang = agentData.language || 'FR';
 
-    // Build SOUL.md content
-    const soulContent = [
-      `# ${agentData.name}`,
-      '',
-      `## Role`,
-      agentData.description || 'AI Assistant',
-      '',
-      `## Communication Style`,
-      `Tone: ${agentData.tone}`,
-      agentData.industry ? `Industry: ${agentData.industry}` : '',
-      '',
-      agentData.specialInstructions ? `## Special Instructions\n${agentData.specialInstructions}` : '',
-    ].filter(Boolean).join('\n');
+    // Build SOUL.md content based on language
+    const soulContent = lang === 'FR'
+      ? [
+          `# ${agentData.name}`,
+          '',
+          `Tu es ${agentData.name}, un assistant IA. Tu réponds toujours en français.`,
+          agentData.description ? `Tu es ${agentData.description}.` : '',
+          '',
+          `## Style de communication`,
+          `Ton : ${agentData.tone}`,
+          agentData.industry ? `Secteur : ${agentData.industry}` : '',
+          '',
+          agentData.specialInstructions ? `## Instructions spéciales\n${agentData.specialInstructions}` : '',
+        ].filter(Boolean).join('\n')
+      : [
+          `# ${agentData.name}`,
+          '',
+          `You are ${agentData.name}, an AI assistant. You always respond in English.`,
+          agentData.description ? `You are ${agentData.description}.` : '',
+          '',
+          `## Communication Style`,
+          `Tone: ${agentData.tone}`,
+          agentData.industry ? `Industry: ${agentData.industry}` : '',
+          '',
+          agentData.specialInstructions ? `## Special Instructions\n${agentData.specialInstructions}` : '',
+        ].filter(Boolean).join('\n');
 
     // 1. Save to Supabase first
     const { data: newAgent, error: insertErr } = await supabase
@@ -97,6 +112,7 @@ export function useAgents() {
         gateway_session_key: sessionKey,
         config: {
           'SOUL.md': soulContent,
+          language: lang,
           skills: agentData.skills,
         },
       })

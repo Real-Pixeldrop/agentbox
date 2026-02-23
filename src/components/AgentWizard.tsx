@@ -22,6 +22,7 @@ import {
   Rocket,
   Info,
   Loader2,
+  Globe,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -39,6 +40,7 @@ interface AgentWizardProps {
     name: string;
     description: string;
     tone: string;
+    language: string;
     industry: string;
     photo: string | null;
     skills: string[];
@@ -50,6 +52,7 @@ interface AgentWizardProps {
     name: string;
     description: string;
     tone: string;
+    language: string;
     industry: string;
     photo: string | null;
     skills: string[];
@@ -58,11 +61,13 @@ interface AgentWizardProps {
 }
 
 type Tone = 'Formal' | 'Friendly' | 'Direct';
+type AgentLanguage = 'FR' | 'EN';
 
 interface FormData {
   name: string;
   description: string;
   tone: Tone;
+  language: AgentLanguage;
   industry: string;
   specialInstructions: string;
   photo: string | null;
@@ -73,6 +78,7 @@ const INITIAL_DATA: FormData = {
   name: '',
   description: '',
   tone: 'Friendly',
+  language: 'FR',
   industry: '',
   specialInstructions: '',
   photo: null,
@@ -131,6 +137,7 @@ export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, c
       name: formData.name || 'New Agent',
       description: formData.description,
       tone: formData.tone,
+      language: formData.language,
       industry: formData.industry,
       photo: formData.photo,
       skills: formData.skills,
@@ -274,6 +281,32 @@ export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, c
                       placeholder={t.wizard.agentNamePlaceholder}
                       className="w-full bg-[#1E293B]/50 border border-[#1E293B] rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/50 focus:border-[#3B82F6] transition-all"
                     />
+                  </div>
+
+                  {/* Language selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium uppercase tracking-widest text-slate-500">{t.wizard.language}</label>
+                    <p className="text-[11px] text-slate-500 -mt-1">{t.wizard.languageHint}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['FR', 'EN'] as AgentLanguage[]).map((lang) => (
+                        <button
+                          key={lang}
+                          onClick={() => setFormData({ ...formData, language: lang })}
+                          className={cn(
+                            "p-4 rounded-xl border transition-all flex items-center gap-3",
+                            formData.language === lang
+                              ? "bg-[#3B82F6]/10 border-[#3B82F6] text-[#3B82F6] shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+                              : "bg-[#1E293B]/30 border-[#1E293B] text-slate-400 hover:border-slate-600"
+                          )}
+                        >
+                          <Globe className="w-5 h-5" />
+                          <span className="text-sm font-medium">
+                            {lang === 'FR' ? t.wizard.languageFr : t.wizard.languageEn}
+                          </span>
+                          <span className="text-xs text-slate-500 ml-auto">{lang === 'FR' ? '🇫🇷' : '🇬🇧'}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -445,6 +478,12 @@ export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, c
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-400">{t.wizard.tone}</span>
                         <span className="text-slate-200">{getToneLabel(formData.tone)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">{t.wizard.language}</span>
+                        <span className="text-slate-200">
+                          {formData.language === 'FR' ? `${t.wizard.languageFr} 🇫🇷` : `${t.wizard.languageEn} 🇬🇧`}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-400">{t.wizard.type}</span>

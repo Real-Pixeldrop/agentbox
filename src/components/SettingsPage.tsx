@@ -746,6 +746,7 @@ export default function SettingsPage() {
     
     setIsUploading(true);
     try {
+      // Create avatars bucket if it doesn't exist
       const { data: buckets } = await supabase.storage.listBuckets();
       const avatarsBucket = buckets?.find(b => b.name === 'avatars');
       
@@ -753,6 +754,7 @@ export default function SettingsPage() {
         await supabase.storage.createBucket('avatars', { public: true });
       }
 
+      // Upload the file
       const fileName = `${user.id}/${Date.now()}.${file.name.split('.').pop()}`;
       const { error } = await supabase.storage
         .from('avatars')
@@ -760,10 +762,12 @@ export default function SettingsPage() {
 
       if (error) throw error;
 
+      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
+      // Update profile
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
@@ -805,19 +809,28 @@ export default function SettingsPage() {
     }
   };
 
+  // Reset password
   const handleResetPassword = async () => {
     if (!user?.email) return;
+    
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(user.email);
       if (error) throw error;
-      alert('Un email de réinitialisation a été envoyé.');
-    } catch {
-      alert('Erreur lors de l\'envoi.');
+      
+      alert('Un email de réinitialisation a été envoyé à votre adresse e-mail.');
+    } catch (error) {
+      console.error('Password reset failed:', error);
+      alert('Erreur lors de l\'envoi de l\'email de réinitialisation.');
     }
   };
 
+  // Sign out
   const handleSignOut = async () => {
-    try { await signOut(); } catch {}
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
   };
 
   return (
@@ -917,9 +930,12 @@ export default function SettingsPage() {
                         await send('gateway.restart', {});
                       } catch {
                         try {
-                          await fetch('https://gateway.pixel-drop.com/restart', {
+                          await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL || 'https://gateway.pixel-drop.com'}/restart`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer FiqqVnVF--ZU7Ubej663Xzjh4uuu0YMqwF12-z_xWSM' },
+                            headers: { 
+                              'Content-Type': 'application/json', 
+                              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_GATEWAY_TOKEN || ''}` 
+                            },
                           });
                         } catch {}
                       }

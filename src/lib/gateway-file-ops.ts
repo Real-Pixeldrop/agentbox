@@ -3,8 +3,8 @@
  * Real file operations via AgentBox Files API
  */
 
-const FILES_API_BASE = 'https://gateway.pixel-drop.com/files';
-const AUTH_TOKEN = 'FiqqVnVF--ZU7Ubej663Xzjh4uuu0YMqwF12-z_xWSM';
+const FILES_API_BASE = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace('wss://', 'https://').replace('ws://', 'http://') + '/files' || 'https://gateway.pixel-drop.com/files';
+const AUTH_TOKEN = process.env.NEXT_PUBLIC_GATEWAY_TOKEN || '';
 
 export interface FileContent {
   path: string;

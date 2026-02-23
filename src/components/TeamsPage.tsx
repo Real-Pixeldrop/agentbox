@@ -150,7 +150,20 @@ const TeamCreateModal = ({
 
 export default function TeamsPage() {
   const { t } = useI18n();
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<Team[]>([
+    {
+      id: 'team-demo-1',
+      name: 'Sales Team',
+      description: 'Équipe commerciale : prospection, qualification et closing.',
+      icon: 'Rocket',
+      badgeKey: 'active',
+      badgeColor: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+      agents: [
+        { id: '1', name: 'Claudia', avatar: '' },
+        { id: '2', name: 'Support Bot', avatar: '' },
+      ],
+    },
+  ]);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const createTeam = (name: string, description: string) => {
@@ -272,11 +285,17 @@ export default function TeamsPage() {
                               className="relative z-10 h-8 w-8 overflow-hidden rounded-full ring-2 ring-[#131825] hover:z-20 hover:scale-110 transition-all"
                               style={{ zIndex: team.agents.length - index }}
                             >
-                              <img 
-                                src={agent.avatar} 
-                                alt={agent.name} 
-                                className="h-full w-full object-cover"
-                              />
+                              {agent.avatar ? (
+                                <img 
+                                  src={agent.avatar} 
+                                  alt={agent.name} 
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-bold">
+                                  {agent.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

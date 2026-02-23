@@ -245,7 +245,7 @@ ${agent.industry ? `- Specialized in ${agent.industry}` : '- General purpose ass
     setEditingMemoryFile('');
     
     try {
-      const fileManager = createGatewayFileManager(client);
+      const fileManager = createGatewayFileManager();
       const content = await fileManager.readFile(agent.gateway_agent_id, file.name);
       setSelectedMemoryFile({ ...file, content });
       setEditingMemoryFile(content);
@@ -261,7 +261,7 @@ ${agent.industry ? `- Specialized in ${agent.industry}` : '- General purpose ass
     setError(null);
     
     try {
-      const fileManager = createGatewayFileManager(client);
+      const fileManager = createGatewayFileManager();
       await fileManager.writeFile(agent.gateway_agent_id, selectedMemoryFile.name, editingMemoryFile);
       setSelectedMemoryFile({ ...selectedMemoryFile, content: editingMemoryFile });
       setSuccess(`${selectedMemoryFile.name} saved successfully!`);

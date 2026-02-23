@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   User,
@@ -18,12 +18,15 @@ import {
   Loader2,
   AlertTriangle,
   OctagonX,
+  Upload,
+  LogOut,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -75,7 +78,8 @@ const Section = ({ title, desc, icon: Icon, children }: SectionProps) => (
 export default function SettingsPage() {
   const { t, language, setLanguage } = useI18n();
   const { status, gatewayUrl, connect, disconnect, send } = useGateway();
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
   const userInitial = (displayName[0] || 'U').toUpperCase();
@@ -89,10 +93,6 @@ export default function SettingsPage() {
   const [showGwToken, setShowGwToken] = useState(false);
   const [gwTesting, setGwTesting] = useState(false);
   const [gwTestResult, setGwTestResult] = useState<'success' | 'error' | null>(null);
-  const [openaiKey, setOpenaiKey] = useState('sk-...xxxx');
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [showOpenai, setShowOpenai] = useState(false);
-  const [showAnthropic, setShowAnthropic] = useState(false);
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -100,10 +100,100 @@ export default function SettingsPage() {
     weeklyReport: false,
   });
   const [saved, setSaved] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  // Upload avatar to Supabase Storage
+  const handleAvatarUpload = async (file: File) => {
+    if (!user) return;
+    
+    setIsUploading(true);
+    try {
+      // Create avatars bucket if it doesn't exist
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const avatarsBucket = buckets?.find(b => b.name === 'avatars');
+      
+      if (!avatarsBucket) {
+        await supabase.storage.createBucket('avatars', { public: true });
+      }
+
+      // Upload the file
+      const fileName = `${user.id}/${Date.now()}.${file.name.split('.').pop()}`;
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Avatar upload failed:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Save profile changes
+  const handleSave = async () => {
+    if (!user) return;
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: profileName,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Profile save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Reset password
+  const handleResetPassword = async () => {
+    if (!user?.email) return;
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+      if (error) throw error;
+      
+      alert('Un email de réinitialisation a été envoyé à votre adresse e-mail.');
+    } catch (error) {
+      console.error('Password reset failed:', error);
+      alert('Erreur lors de l\'envoi de l\'email de réinitialisation.');
+    }
+  };
+
+  // Sign out
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
   };
 
   return (
@@ -116,15 +206,24 @@ export default function SettingsPage() {
         </div>
         <button
           onClick={handleSave}
+          disabled={isSaving}
           className={cn(
             "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all",
             saved
               ? "bg-green-500/20 text-green-400 border border-green-500/30"
-              : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
+              : isSaving
+                ? "bg-blue-600/50 text-blue-200 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
           )}
         >
-          {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          {saved ? t.settings.saved : t.settings.saveChanges}
+          {saved ? (
+            <Check className="w-4 h-4" />
+          ) : isSaving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          {saved ? t.settings.saved : isSaving ? 'Sauvegarde...' : t.settings.saveChanges}
         </button>
       </header>
 
@@ -317,9 +416,38 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-6 mb-4">
               <div className="relative group">
-                <div className="w-16 h-16 rounded-full border-2 border-slate-700 flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700">
-                  <span className="text-2xl font-bold text-white select-none">{userInitial}</span>
-                </div>
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt={displayName}
+                    className="w-16 h-16 rounded-full border-2 border-slate-700 object-cover"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full border-2 border-slate-700 flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700">
+                    <span className="text-2xl font-bold text-white select-none">{userInitial}</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-white transition-colors disabled:opacity-50"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Camera className="w-3 h-3" />
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleAvatarUpload(file);
+                  }}
+                  className="hidden"
+                />
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-white">{displayName}</span>
@@ -340,9 +468,29 @@ export default function SettingsPage() {
               <input
                 type="email"
                 value={profileEmail}
-                onChange={(e) => setProfileEmail(e.target.value)}
-                className="w-full bg-[#0B0F1A] border border-slate-800 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                disabled
+                className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-500 cursor-not-allowed"
               />
+              <p className="text-xs text-slate-600">L'email ne peut pas être modifié directement</p>
+            </div>
+            
+            {/* Action buttons */}
+            <div className="pt-4 space-y-3 border-t border-slate-800">
+              <button
+                onClick={handleResetPassword}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Key className="w-4 h-4" />
+                Réinitialiser le mot de passe
+              </button>
+              
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-400 hover:text-red-300 rounded-lg text-sm font-medium transition-colors border border-red-500/20"
+              >
+                <LogOut className="w-4 h-4" />
+                Se déconnecter
+              </button>
             </div>
           </div>
         </Section>
@@ -350,43 +498,20 @@ export default function SettingsPage() {
         {/* Billing */}
         <Section title={t.settings.billing} desc={t.settings.billingDesc} icon={CreditCard}>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-[#0B0F1A] rounded-lg border border-slate-800/50">
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-widest font-bold">{t.settings.currentPlan}</p>
-                <p className="text-lg font-bold text-white mt-1">{t.settings.proPlan}</p>
+            <div className="flex items-center justify-between p-6 bg-[#0B0F1A] rounded-lg border border-slate-800/50 relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs text-slate-500 uppercase tracking-widest font-bold">{t.settings.currentPlan}</p>
+                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase tracking-widest border border-blue-500/20 rounded">
+                    Bientôt disponible
+                  </span>
+                </div>
+                <p className="text-lg font-bold text-slate-600">Plan gratuit</p>
+                <p className="text-xs text-slate-600 mt-1">Les fonctionnalités de facturation seront disponibles prochainement</p>
               </div>
-              <span className="text-sm font-semibold text-blue-400">{t.settings.monthlyPrice}</span>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-3">{t.settings.usage}</p>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">{t.settings.agentsUsed}</span>
-                    <span className="text-slate-300 font-medium">4 / 10</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '40%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">{t.settings.messagesThisMonth}</span>
-                    <span className="text-slate-300 font-medium">2,847 / 10,000</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: '28%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">{t.settings.storageUsed}</span>
-                    <span className="text-slate-300 font-medium">1.2 GB / 5 GB</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-500 rounded-full" style={{ width: '24%' }} />
-                  </div>
-                </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent to-slate-900/20" />
+              <div className="relative z-10 opacity-50">
+                <span className="text-sm font-semibold text-slate-600">0€/mois</span>
               </div>
             </div>
           </div>
@@ -395,41 +520,14 @@ export default function SettingsPage() {
         {/* API Keys */}
         <Section title={t.settings.apiKeys} desc={t.settings.apiKeysDesc} icon={Key}>
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-widest text-slate-500">{t.settings.openaiKey}</label>
-              <div className="relative">
-                <input
-                  type={showOpenai ? 'text' : 'password'}
-                  value={openaiKey}
-                  onChange={(e) => setOpenaiKey(e.target.value)}
-                  placeholder={t.settings.pasteKey}
-                  className="w-full bg-[#0B0F1A] border border-slate-800 rounded-lg px-4 py-2.5 pr-10 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-                />
-                <button
-                  onClick={() => setShowOpenai(!showOpenai)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-                >
-                  {showOpenai ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            <div className="p-6 bg-[#0B0F1A] rounded-lg border border-slate-800/50 relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase tracking-widest border border-blue-500/20 rounded">
+                  Bientôt disponible
+                </span>
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-widest text-slate-500">{t.settings.anthropicKey}</label>
-              <div className="relative">
-                <input
-                  type={showAnthropic ? 'text' : 'password'}
-                  value={anthropicKey}
-                  onChange={(e) => setAnthropicKey(e.target.value)}
-                  placeholder={t.settings.pasteKey}
-                  className="w-full bg-[#0B0F1A] border border-slate-800 rounded-lg px-4 py-2.5 pr-10 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-                />
-                <button
-                  onClick={() => setShowAnthropic(!showAnthropic)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-                >
-                  {showAnthropic ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <p className="text-sm text-slate-600">La gestion des clés API sera disponible dans une prochaine version.</p>
+              <p className="text-xs text-slate-700 mt-2">Vos agents utilisent actuellement les modèles configurés par défaut.</p>
             </div>
           </div>
         </Section>

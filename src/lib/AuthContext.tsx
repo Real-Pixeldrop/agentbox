@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase, type Profile } from './supabase';
+import { supabase, type Profile, type Agent } from './supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -36,6 +36,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!error && data) {
       setProfile(data as Profile);
+    }
+  }, []);
+
+  const createDefaultAgent = useCallback(async (userId: string) => {
+    // Check if user already has agents
+    const { data: existingAgents } = await supabase
+      .from('agents')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (existingAgents && existingAgents.length > 0) {
+      // User already has agents, skip default creation
+      return;
+    }
+
+    // Create default "main" agent
+    const defaultAgent: Omit<Agent, 'id' | 'created_at' | 'updated_at'> = {
+      user_id: userId,
+      name: 'Assistant',
+      description: 'Your main AI assistant',
+      personality: null,
+      model: 'claude-sonnet-4-20250514',
+      status: 'active',
+      gateway_agent_id: 'main',
+      gateway_session_key: 'agent:main:main',
+      config: {},
+      photo_url: null,
+      tone: null,
+      industry: null,
+      skills: []
+    };
+
+    const { error } = await supabase
+      .from('agents')
+      .insert(defaultAgent);
+
+    if (error) {
+      console.error('Failed to create default agent:', error);
     }
   }, []);
 
@@ -76,14 +115,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
     if (error) return { error: error.message };
+    
+    // If signup was successful and user is created, create default agent
+    if (data.user) {
+      await createDefaultAgent(data.user.id);
+    }
+    
     return { error: null };
-  }, []);
+  }, [createDefaultAgent]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();

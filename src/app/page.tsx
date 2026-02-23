@@ -13,6 +13,7 @@ import {
   Users,
   X,
   Bot,
+  Menu,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -149,6 +150,7 @@ export default function AgentBoxDashboard() {
   });
   const [currentSessionKey, setCurrentSessionKey] = useState<string>('agent:main:main');
   const [agentsLoaded, setAgentsLoaded] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
 
@@ -743,6 +745,14 @@ export default function AgentBoxDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#0B0F1A] text-slate-200 font-sans selection:bg-blue-500/30">
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="fixed top-4 left-4 z-30 p-2 rounded-lg bg-slate-800/80 backdrop-blur-sm text-slate-300 hover:text-white hover:bg-slate-700/80 transition-all md:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       {/* Enriched Sidebar */}
       <EnrichedSidebar
         currentPage={
@@ -754,10 +764,12 @@ export default function AgentBoxDashboard() {
         favoriteAgents={favoriteAgents}
         onSelectAgent={handleSelectAgent}
         agents={agents}
+        mobileOpen={sidebarOpen}
+        onMobileClose={() => setSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-[240px]">{renderContent()}</main>
+      <main className="flex-1 ml-0 md:ml-[240px]">{renderContent()}</main>
 
       {showWizard && (
         <AgentWizard

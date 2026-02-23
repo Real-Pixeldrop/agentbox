@@ -15,6 +15,7 @@ import {
   MoreVertical,
   LogOut,
   Puzzle,
+  X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
@@ -35,6 +36,10 @@ interface EnrichedSidebarProps {
   onSelectAgent?: (id: string) => void;
   /** Real agents from gateway or page state */
   agents?: Array<{ id: number; name: string; photo: string; active: boolean }>;
+  /** Mobile: whether sidebar is open */
+  mobileOpen?: boolean;
+  /** Mobile: callback to close sidebar */
+  onMobileClose?: () => void;
 }
 
 interface NavItemProps {
@@ -139,6 +144,8 @@ export default function EnrichedSidebar({
   favoriteAgents = [],
   onSelectAgent,
   agents = [],
+  mobileOpen = false,
+  onMobileClose,
 }: EnrichedSidebarProps) {
   const { t, language, toggleLanguage } = useI18n();
   const { isConnected } = useGateway();
@@ -172,17 +179,50 @@ export default function EnrichedSidebar({
     ? agents.slice(0, 3).map(a => ({ name: a.name, avatar: a.photo, time: a.active ? '●' : '—' }))
     : [];
 
+  // Wrap onNavigate to close mobile sidebar
+  const handleNav = (id: string) => {
+    onNavigate(id);
+    onMobileClose?.();
+  };
+
+  const handleAgentSelect = (id: string) => {
+    onSelectAgent ? onSelectAgent(id) : onNavigate('agents');
+    onMobileClose?.();
+  };
+
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-[240px] flex-col border-r border-slate-800/50 bg-[#0F1219] text-slate-200 antialiased selection:bg-blue-500/30">
+    <>
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+
+      <aside className={cn(
+        "fixed left-0 top-0 z-50 flex h-screen w-[240px] flex-col border-r border-slate-800/50 bg-[#0F1219] text-slate-200 antialiased selection:bg-blue-500/30 transition-transform duration-300 ease-in-out",
+        // Mobile: hidden by default, shown when mobileOpen
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        // Desktop: always visible
+        "md:translate-x-0"
+      )}>
       
       {/* Branding */}
-      <div className="flex h-16 items-center gap-3 px-6">
+      <div className="flex h-16 items-center justify-between px-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.4)]">
           <Box className="h-5 w-5 text-white" />
         </div>
         <span className="text-lg font-bold tracking-tight text-white">
           Agent<span className="text-blue-500">Box</span>
         </span>
+        {/* Mobile close button */}
+        <button
+          onClick={onMobileClose}
+          className="md:hidden p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Scrollable Content */}
@@ -195,7 +235,7 @@ export default function EnrichedSidebar({
               key={item.id}
               {...item}
               isActive={currentPage === item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => handleNav(item.id)}
             />
           ))}
         </nav>
@@ -211,7 +251,7 @@ export default function EnrichedSidebar({
                   name={agent.name} 
                   avatarUrl={agent.photo}
                   isAgentActive={agent.active}
-                  onClick={() => onSelectAgent ? onSelectAgent(agent.id) : onNavigate('agents')}
+                  onClick={() => handleAgentSelect(agent.id)}
                 />
               ))}
             </div>
@@ -227,7 +267,7 @@ export default function EnrichedSidebar({
               name={team.name} 
               color={team.color} 
               count={team.count} 
-              onClick={() => onNavigate('teams')}
+              onClick={() => handleNav('teams')}
             />
           ))}
         </div>
@@ -238,7 +278,7 @@ export default function EnrichedSidebar({
             <SectionHeader title={t.sidebar.recent} />
             <div className="space-y-3 px-3 py-1">
               {recentAgents.map((agent, i) => (
-                <div key={i} className="flex items-center justify-between group cursor-pointer" onClick={() => onNavigate('agents')}>
+                <div key={i} className="flex items-center justify-between group cursor-pointer" onClick={() => handleNav('agents')}>
                   <div className="flex items-center gap-3">
                     {agent.avatar ? (
                       <img src={agent.avatar} alt="" className="h-5 w-5 rounded-full grayscale group-hover:grayscale-0 transition-all" />
@@ -309,7 +349,7 @@ export default function EnrichedSidebar({
           {showProfileMenu && (
             <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#131825] border border-slate-700 rounded-lg shadow-xl z-50 py-1">
               <button
-                onClick={() => { onNavigate('settings'); setShowProfileMenu(false); }}
+                onClick={() => { handleNav('settings'); setShowProfileMenu(false); }}
                 className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white transition-colors"
               >
                 <Settings className="h-4 w-4" />
@@ -323,5 +363,6 @@ export default function EnrichedSidebar({
       {/* Sidebar Glow */}
       <div className="pointer-events-none absolute -left-[100px] top-1/2 h-[400px] w-[100px] bg-blue-500/5 blur-[120px]" />
     </aside>
+    </>
   );
 }

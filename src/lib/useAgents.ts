@@ -157,6 +157,25 @@ export function useAgents() {
 
     const agent = newAgent as Agent;
     setAgents(prev => [agent, ...prev]);
+
+    // Send bootstrap prompt to configure the agent with initial context
+    if (isConnected) {
+      try {
+        const bootstrapPrompt = lang === 'FR'
+          ? `Tu es ${agentData.name}. Ton rôle : ${agentData.description || 'assistant IA'}. Langue : FR. ${agentData.industry ? `Secteur : ${agentData.industry}.` : ''} ${agentData.skills.length > 0 ? `Tes compétences : ${agentData.skills.join(', ')}.` : ''} ${agentData.specialInstructions ? `Règles : ${agentData.specialInstructions}` : ''} Confirme que tu es prêt.`
+          : `You are ${agentData.name}. Your role: ${agentData.description || 'AI assistant'}. Language: EN. ${agentData.industry ? `Industry: ${agentData.industry}.` : ''} ${agentData.skills.length > 0 ? `Your skills: ${agentData.skills.join(', ')}.` : ''} ${agentData.specialInstructions ? `Rules: ${agentData.specialInstructions}` : ''} Confirm you are ready.`;
+
+        await send('chat.send', {
+          message: bootstrapPrompt.replace(/\s+/g, ' ').trim(),
+          sessionKey,
+          idempotencyKey: `bootstrap-${agentId}-${Date.now()}`,
+        });
+      } catch (bootstrapErr) {
+        // Non-critical: agent is already created, bootstrap is best-effort
+        console.warn('Bootstrap prompt failed:', bootstrapErr);
+      }
+    }
+
     return agent;
   }, [user, isConnected, send]);
 

@@ -414,6 +414,9 @@ const fr: Translations = {
     agentLaunched: "est maintenant actif et prêt à travailler.",
     agentDeployed: "Agent déployé sur le gateway !",
     agentDeployFailed: "Échec du déploiement de l'agent sur le gateway.",
+    agentDeleted: "Agent supprimé avec succès.",
+    agentDeleteFailed: "Échec de la suppression de l'agent.",
+    agentStatusUpdated: "Statut de l'agent mis à jour.",
   },
 };
 

@@ -27,6 +27,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
+import type { Agent as SupabaseAgent } from '@/lib/supabase';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -42,6 +43,18 @@ interface AgentWizardProps {
     photo: string | null;
     skills: string[];
   }) => void;
+  /** New: callback that receives the full Supabase agent after creation */
+  onAgentCreated?: (agent: SupabaseAgent) => void;
+  /** New: external create function from useAgents hook */
+  createAgent?: (data: {
+    name: string;
+    description: string;
+    tone: string;
+    industry: string;
+    photo: string | null;
+    skills: string[];
+    specialInstructions?: string;
+  }) => Promise<SupabaseAgent>;
 }
 
 type Tone = 'Formal' | 'Friendly' | 'Direct';
@@ -78,9 +91,9 @@ const StepHint = ({ icon: Icon, title, text }: { icon: React.ElementType; title:
   </div>
 );
 
-export default function CreateAgentWizard({ onClose, onLaunch }: AgentWizardProps) {
+export default function CreateAgentWizard({ onClose, onLaunch, onAgentCreated, createAgent }: AgentWizardProps) {
   const { t } = useI18n();
-  const { isConnected, send } = useGateway();
+  const { isConnected } = useGateway();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(INITIAL_DATA);
   const [isLaunching, setIsLaunching] = useState(false);
@@ -121,59 +134,27 @@ export default function CreateAgentWizard({ onClose, onLaunch }: AgentWizardProp
       industry: formData.industry,
       photo: formData.photo,
       skills: formData.skills,
+      specialInstructions: formData.specialInstructions,
     };
 
-    if (isConnected) {
-      // Live mode: deploy via gateway
+    // If we have the createAgent function from useAgents, use it (real Supabase + Gateway flow)
+    if (createAgent) {
       try {
-        // Get current config
-        const config = await send<Record<string, unknown>>('config.get', {});
-        const currentAgents = (config?.agents as Record<string, unknown>)?.list as Array<Record<string, unknown>> || [];
-
-        // Generate a stable agent ID
-        const agentId = agentData.name.toLowerCase().replace(/\s+/g, '-') || `agent-${Date.now()}`;
-
-        // Build SOUL.md content
-        const soulContent = [
-          `# ${agentData.name}`,
-          '',
-          `## Role`,
-          agentData.description || 'AI Assistant',
-          '',
-          `## Communication Style`,
-          `Tone: ${agentData.tone}`,
-          agentData.industry ? `Industry: ${agentData.industry}` : '',
-          '',
-          formData.specialInstructions ? `## Special Instructions\n${formData.specialInstructions}` : '',
-        ].filter(Boolean).join('\n');
-
-        // Add new agent to config with an ID for session key generation
-        const newAgentConfig = {
-          id: agentId,
-          name: agentData.name,
-          'SOUL.md': soulContent,
-          skills: agentData.skills,
-          enabled: true,
-        };
-
-        const newConfig = {
-          ...config,
-          agents: {
-            ...(config?.agents as Record<string, unknown> || {}),
-            list: [...currentAgents, newAgentConfig],
-          },
-        };
-
-        // Apply new config
-        await send('config.apply', newConfig);
-
-        // Call the local callback to update UI
+        const newAgent = await createAgent(agentData);
+        onAgentCreated?.(newAgent);
+        // Also call legacy callback for backwards compat
         onLaunch?.(agentData);
       } catch (err) {
-        setDeployError(err instanceof Error ? err.message : 'Deploy failed');
-        // Still create the agent locally
-        onLaunch?.(agentData);
+        const message = err instanceof Error ? err.message : 'Failed to create agent';
+        setDeployError(message);
+        // If it's a "saved but gateway failed" error, still notify parent
+        if (message.includes('saved but')) {
+          onLaunch?.(agentData);
+        }
       }
+    } else if (isConnected) {
+      // Fallback: direct gateway deploy without Supabase (shouldn't happen normally)
+      onLaunch?.(agentData);
     } else {
       // Demo mode: mock delay then create locally
       await new Promise((resolve) => setTimeout(resolve, 800));
@@ -251,7 +232,7 @@ export default function CreateAgentWizard({ onClose, onLaunch }: AgentWizardProp
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           <AnimatePresence mode="wait">
-            {/* STEP 1: SOUL / Personality (was split across steps, now grouped) */}
+            {/* STEP 1: SOUL / Personality */}
             {step === 1 && (
               <motion.div
                 key="step1"

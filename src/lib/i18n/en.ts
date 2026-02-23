@@ -412,6 +412,9 @@ const en = {
     agentLaunched: "is now active and ready to work.",
     agentDeployed: "Agent deployed to gateway!",
     agentDeployFailed: "Failed to deploy agent to gateway.",
+    agentDeleted: "Agent deleted successfully.",
+    agentDeleteFailed: "Failed to delete agent.",
+    agentStatusUpdated: "Agent status updated.",
   },
 };
 

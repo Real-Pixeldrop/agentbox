@@ -1,0 +1,13 @@
+{
+  "name": "agentbox-api",
+  "version": "1.0.0",
+  "description": "AgentBox Files API + Sandbox Executor",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0"
+  }
+}

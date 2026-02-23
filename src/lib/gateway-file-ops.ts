@@ -1,10 +1,10 @@
 /**
  * Gateway file operations utilities
- * Since the gateway doesn't have direct file system endpoints,
- * we simulate file operations using the config system and agent memory
+ * Real file operations via AgentBox Files API
  */
 
-import type { GatewayClient } from './gateway';
+const FILES_API_BASE = 'https://gateway.pixel-drop.com/files';
+const AUTH_TOKEN = 'REDACTED_GATEWAY_TOKEN';
 
 export interface FileContent {
   path: string;
@@ -13,35 +13,50 @@ export interface FileContent {
 }
 
 export class GatewayFileManager {
-  constructor(private gateway: GatewayClient) {}
-
   /**
    * Read a file from the agent's workspace
-   * For now, we'll simulate this by returning generated content
    */
   async readFile(agentId: string, filePath: string): Promise<string> {
     try {
-      // For now, we generate content based on the file type
-      // In a real implementation, this would query the gateway for file content
-      return this.generateFileContent(agentId, filePath);
+      const response = await fetch(`${FILES_API_BASE}/${agentId}?path=${encodeURIComponent(filePath)}`, {
+        headers: {
+          'Authorization': `Bearer ${AUTH_TOKEN}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // File doesn't exist, return default content
+          return this.generateDefaultContent(agentId, filePath);
+        }
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      return data.content;
     } catch (error) {
-      throw new Error(`Failed to read file ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // If API call fails, return default content
+      console.warn(`Failed to read file ${filePath}, using default:`, error);
+      return this.generateDefaultContent(agentId, filePath);
     }
   }
 
   /**
    * Write a file to the agent's workspace
-   * For now, we'll store important files in the agent's config
    */
   async writeFile(agentId: string, filePath: string, content: string): Promise<void> {
     try {
-      if (filePath === 'SOUL.md') {
-        // SOUL.md is stored in the agent config
-        await this.updateAgentConfig(agentId, { 'SOUL.md': content });
-      } else {
-        // For other files, we'd need a different storage mechanism
-        // For now, we'll simulate the write operation
-        console.log(`[SIMULATED] Writing to ${filePath} for agent ${agentId}`);
+      const response = await fetch(`${FILES_API_BASE}/${agentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${AUTH_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path: filePath, content }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
     } catch (error) {
       throw new Error(`Failed to write file ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -52,57 +67,55 @@ export class GatewayFileManager {
    * List files in the agent's workspace
    */
   async listFiles(agentId: string, directory = ''): Promise<string[]> {
-    // For now, return a standard set of files
-    const baseFiles = ['SOUL.md', 'MEMORY.md', 'TOOLS.md'];
-    
-    // Add daily memory files for the last 7 days
-    const today = new Date();
-    const dailyFiles = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      dailyFiles.push(`memory/${dateStr}.md`);
-    }
+    try {
+      const response = await fetch(`${FILES_API_BASE}/${agentId}/list?dir=${encodeURIComponent(directory)}`, {
+        headers: {
+          'Authorization': `Bearer ${AUTH_TOKEN}`,
+        },
+      });
 
-    if (directory === 'memory') {
-      return dailyFiles.map(f => f.replace('memory/', ''));
-    }
-
-    return directory === '' ? [...baseFiles, ...dailyFiles] : [];
-  }
-
-  /**
-   * Update agent configuration
-   */
-  private async updateAgentConfig(agentId: string, updates: Record<string, any>): Promise<void> {
-    const config = await this.gateway.send('config.get', {});
-    const agents = (config as any)?.agents?.list || [];
-    
-    const agentIndex = agents.findIndex((a: any) => a.id === agentId);
-    if (agentIndex === -1) {
-      throw new Error(`Agent ${agentId} not found in gateway config`);
-    }
-
-    agents[agentIndex] = { ...agents[agentIndex], ...updates };
-
-    const newConfig = {
-      ...(config as Record<string, any>),
-      agents: {
-        ...((config as any)?.agents || {}),
-        list: agents
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Directory doesn't exist, return default files
+          return this.getDefaultFilesList(directory);
+        }
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
-    };
 
-    await this.gateway.send('config.apply', newConfig);
+      const data = await response.json();
+      return data.files.map((file: any) => file.name);
+    } catch (error) {
+      console.warn(`Failed to list files in ${directory}, using defaults:`, error);
+      return this.getDefaultFilesList(directory);
+    }
   }
 
   /**
-   * Generate file content based on file path and agent ID
+   * Generate default content for files that don't exist yet
    */
-  private generateFileContent(agentId: string, filePath: string): string {
+  private generateDefaultContent(agentId: string, filePath: string): string {
     const today = new Date().toISOString().split('T')[0];
     
+    if (filePath === 'SOUL.md') {
+      return `# SOUL.md - Agent Identity
+
+## Who I Am
+I am an AI assistant created to help you with various tasks.
+
+## My Purpose
+- Provide helpful and accurate information
+- Assist with tasks and problem-solving
+- Maintain a friendly and professional demeanor
+
+## Guidelines
+- Be helpful, harmless, and honest
+- Provide thoughtful responses
+- Ask for clarification when needed
+
+Last updated: ${today}
+Agent ID: ${agentId}`;
+    }
+
     if (filePath === 'MEMORY.md') {
       return `# MEMORY.md - Long-term Memory
 
@@ -117,11 +130,6 @@ export class GatewayFileManager {
 ## User Interactions
 - Interaction patterns will be recorded here
 - Important conversations and outcomes
-
-## System Notes
-- This is a simulated memory file
-- Real implementation would store actual agent memories
-- Content would persist across sessions
 
 ## Important Context
 - Add critical information that should persist
@@ -149,14 +157,7 @@ export class GatewayFileManager {
 - Memory file management
 - Configuration updates via gateway API
 
-## Usage Statistics
-- Tool usage will be tracked here
-- Performance metrics and optimization notes
-
-## Configuration
-- Tools are automatically available
-- Managed through AgentBox interface
-- Custom tool integration available`;
+Last updated: ${today}`;
     }
 
     // Handle daily memory files
@@ -191,11 +192,34 @@ Content will be populated based on agent activities and user interactions.
 Last generated: ${today}
 Agent ID: ${agentId}`;
   }
+
+  /**
+   * Get default files list when directory doesn't exist
+   */
+  private getDefaultFilesList(directory: string): string[] {
+    const baseFiles = ['SOUL.md', 'MEMORY.md', 'TOOLS.md'];
+    
+    // Add daily memory files for the last 7 days
+    const today = new Date();
+    const dailyFiles = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      dailyFiles.push(`memory/${dateStr}.md`);
+    }
+
+    if (directory === 'memory') {
+      return dailyFiles.map(f => f.replace('memory/', ''));
+    }
+
+    return directory === '' ? [...baseFiles, ...dailyFiles] : [];
+  }
 }
 
 /**
- * Create a file manager instance for the current gateway
+ * Create a file manager instance
  */
-export function createGatewayFileManager(gateway: GatewayClient): GatewayFileManager {
-  return new GatewayFileManager(gateway);
+export function createGatewayFileManager(): GatewayFileManager {
+  return new GatewayFileManager();
 }

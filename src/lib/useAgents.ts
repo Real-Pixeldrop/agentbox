@@ -148,6 +148,11 @@ export function useAgents() {
   const deleteAgent = useCallback(async (agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     if (!agent) throw new Error('Agent not found');
+    
+    // Prevent deletion of the default "main" agent
+    if (agent.gateway_agent_id === 'main') {
+      throw new Error('Cannot delete the main agent');
+    }
 
     // 1. Remove from gateway if connected
     if (isConnected && agent.gateway_agent_id) {

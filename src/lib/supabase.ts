@@ -47,3 +47,14 @@ export type TeamMember = {
   team_id: string;
   agent_id: string;
 };
+
+export type ActivityLog = {
+  id: string;
+  user_id: string;
+  agent_id: string | null;
+  type: 'email' | 'task' | 'error' | 'reminder' | 'crm' | 'agent_created' | 'agent_updated' | 'soul_updated' | 'message_sent';
+  title: string;
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};

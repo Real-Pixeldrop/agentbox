@@ -688,19 +688,32 @@ export default function AgentBoxDashboard() {
                             Assigner à une équipe
                           </button>
                           
-                          <button
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agent.name} ?`)) {
-                                handleDeleteAgent(agent.id);
-                              }
-                              setAgentMenuId(null);
-                            }}
-                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-                          >
-                            <X size={16} />
-                            Supprimer l&apos;agent
-                          </button>
+                          {/* Hide delete button for "main" agent */}
+                          {(() => {
+                            // Check if this is the main agent
+                            const supabaseAgent = supabaseAgents.find(a => a.id === agent.supabaseId);
+                            const isMainAgent = supabaseAgent?.gateway_agent_id === 'main';
+                            
+                            if (isMainAgent) {
+                              return null;
+                            }
+                            
+                            return (
+                              <button
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agent.name} ?`)) {
+                                    handleDeleteAgent(agent.id);
+                                  }
+                                  setAgentMenuId(null);
+                                }}
+                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                              >
+                                <X size={16} />
+                                Supprimer l&apos;agent
+                              </button>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>

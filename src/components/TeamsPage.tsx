@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { 
   Users, 
@@ -18,21 +18,15 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
+import { supabase, type Team, type Agent } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type TeamAgent = { id: string; name: string; avatar: string };
-
-type Team = {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  badgeKey: string;
-  badgeColor: string;
-  agents: TeamAgent[];
+type TeamWithAgents = Team & {
+  agents: Partial<Agent>[];
 };
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -150,30 +144,80 @@ const TeamCreateModal = ({
 
 export default function TeamsPage() {
   const { t } = useI18n();
-  const [teams, setTeams] = useState<Team[]>([
-    {
-      id: 'team-demo-1',
-      name: 'Sales Team',
-      description: 'Équipe commerciale : prospection, qualification et closing.',
-      icon: 'Rocket',
-      badgeKey: 'active',
-      badgeColor: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-      agents: [
-        { id: '1', name: 'Claudia', avatar: '' },
-        { id: '2', name: 'Support Bot', avatar: '' },
-      ],
-    },
-  ]);
+  const { user } = useAuth();
+  const [teams, setTeams] = useState<TeamWithAgents[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Load teams data from Supabase
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const loadTeams = async () => {
+      try {
+        setLoading(true);
+
+        // Load teams
+        const { data: teamsData, error: teamsError } = await supabase
+          .from('teams')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (teamsError) throw teamsError;
+
+        // Load team members and agent details
+        const teamsWithAgents: TeamWithAgents[] = [];
+        
+        for (const team of teamsData || []) {
+          const { data: membersData, error: membersError } = await supabase
+            .from('team_members')
+            .select(`
+              agent_id,
+              agents (
+                id,
+                name,
+                description,
+                photo_url,
+                status,
+                created_at
+              )
+            `)
+            .eq('team_id', team.id);
+
+          if (membersError) {
+            console.error('Failed to load team members:', membersError);
+            continue;
+          }
+
+          const agents = (membersData || [])
+            .map(member => member.agents)
+            .filter(Boolean) as Partial<Agent>[];
+
+          teamsWithAgents.push({
+            ...team,
+            agents,
+          });
+        }
+
+        setTeams(teamsWithAgents);
+      } catch (error) {
+        console.error('Failed to load teams:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTeams();
+  }, [user?.id]);
+
   const createTeam = (name: string, description: string) => {
-    const newTeam: Team = {
+    const newTeam: TeamWithAgents = {
       id: `team-${Date.now()}`,
+      user_id: '', // Will be set if saved to Supabase
       name,
       description,
-      icon: 'Users',
-      badgeKey: 'new',
-      badgeColor: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+      created_at: new Date().toISOString(),
       agents: []
     };
     setTeams(prev => [...prev, newTeam]);
@@ -221,7 +265,7 @@ export default function TeamsPage() {
           <div className="grid gap-6">
             <AnimatePresence>
               {teams.map((team) => {
-                const IconComponent = ICON_MAP[team.icon] || Users;
+                const IconComponent = Users; // Default icon for all teams
                 
                 return (
                   <motion.div
@@ -248,9 +292,9 @@ export default function TeamsPage() {
                           <div className="flex items-center gap-2 mt-2">
                             <span className={cn(
                               "px-2 py-1 rounded-full text-[10px] font-bold border",
-                              team.badgeColor
+                              "text-blue-400 bg-blue-400/10 border-blue-400/20"
                             )}>
-                              {t.teams[team.badgeKey as keyof typeof t.teams] || team.badgeKey}
+                              Équipe
                             </span>
                             <span className="text-xs text-slate-500">
                               {team.agents.length === 0 
@@ -285,15 +329,15 @@ export default function TeamsPage() {
                               className="relative z-10 h-8 w-8 overflow-hidden rounded-full ring-2 ring-[#131825] hover:z-20 hover:scale-110 transition-all"
                               style={{ zIndex: team.agents.length - index }}
                             >
-                              {agent.avatar ? (
+                              {agent.photo_url ? (
                                 <img 
-                                  src={agent.avatar} 
-                                  alt={agent.name} 
+                                  src={agent.photo_url} 
+                                  alt={agent.name || 'Agent'} 
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
                                 <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-bold">
-                                  {agent.name.charAt(0).toUpperCase()}
+                                  {agent.name?.charAt(0).toUpperCase() || 'A'}
                                 </div>
                               )}
                             </div>

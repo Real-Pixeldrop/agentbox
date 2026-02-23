@@ -14,6 +14,13 @@ import {
   Sparkles,
   X,
   ImageIcon,
+  FileText,
+  UserCheck,
+  MessageSquare,
+  CalendarDays,
+  Send,
+  Users,
+  BarChart3,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -218,23 +225,32 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
     inputRef.current?.focus();
   };
 
-  const suggestions = [
-    {
-      id: 'urgent',
-      text: t.home.suggestion1,
-      icon: <AlertCircle className="w-4 h-4 text-rose-400" />,
-    },
-    {
-      id: 'meetings',
-      text: t.home.suggestion2,
-      icon: <Calendar className="w-4 h-4 text-blue-400" />,
-    },
-    {
-      id: 'emails',
-      text: t.home.suggestion3,
-      icon: <Mail className="w-4 h-4 text-emerald-400" />,
-    },
+  const suggestionPool = [
+    { text: t.home.suggestions[0], icon: <Mail className="w-4 h-4 text-emerald-400" /> },
+    { text: t.home.suggestions[1], icon: <FileText className="w-4 h-4 text-blue-400" /> },
+    { text: t.home.suggestions[2], icon: <UserCheck className="w-4 h-4 text-orange-400" /> },
+    { text: t.home.suggestions[3], icon: <Calendar className="w-4 h-4 text-blue-400" /> },
+    { text: t.home.suggestions[4], icon: <AlertCircle className="w-4 h-4 text-rose-400" /> },
+    { text: t.home.suggestions[5], icon: <MessageSquare className="w-4 h-4 text-violet-400" /> },
+    { text: t.home.suggestions[6], icon: <CalendarDays className="w-4 h-4 text-indigo-400" /> },
+    { text: t.home.suggestions[7], icon: <Send className="w-4 h-4 text-emerald-400" /> },
+    { text: t.home.suggestions[8], icon: <Users className="w-4 h-4 text-amber-400" /> },
+    { text: t.home.suggestions[9], icon: <BarChart3 className="w-4 h-4 text-sky-400" /> },
   ];
+
+  const [randomIndices] = useState(() => {
+    const indices: number[] = [];
+    while (indices.length < 3) {
+      const r = Math.floor(Math.random() * suggestionPool.length);
+      if (!indices.includes(r)) indices.push(r);
+    }
+    return indices;
+  });
+
+  const suggestions = randomIndices.map((i) => ({
+    id: `suggestion-${i}`,
+    ...suggestionPool[i],
+  }));
 
   return (
     <main className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-[#0B0F1A] text-slate-200 selection:bg-blue-500/30">
@@ -520,25 +536,6 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
           <p className="text-[10px] text-slate-600">{t.disclaimer.text}</p>
         </motion.div>
 
-      </motion.div>
-
-      {/* FOOTER HINT */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 1 }}
-        className="absolute bottom-8 text-[11px] font-medium tracking-widest text-slate-600 uppercase hidden sm:flex items-center gap-4"
-      >
-        <div className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 rounded border border-slate-800 bg-slate-900/50 font-sans">⌘</kbd>
-          <kbd className="px-1.5 py-0.5 rounded border border-slate-800 bg-slate-900/50 font-sans">K</kbd>
-          <span className="ml-1 opacity-60">{t.home.commands}</span>
-        </div>
-        <div className="w-1 h-1 rounded-full bg-slate-800" />
-        <div className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 rounded border border-slate-800 bg-slate-900/50 font-sans">L</kbd>
-          <span className="ml-1 opacity-60">{t.home.searchLogs}</span>
-        </div>
       </motion.div>
 
       {/* DECORATIVE MESH CORNERS */}

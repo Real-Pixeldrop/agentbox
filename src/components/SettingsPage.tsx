@@ -16,11 +16,14 @@ import {
   Wifi,
   WifiOff,
   Loader2,
+  AlertTriangle,
+  OctagonX,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
+import { useAuth } from '@/lib/AuthContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -71,10 +74,16 @@ const Section = ({ title, desc, icon: Icon, children }: SectionProps) => (
 
 export default function SettingsPage() {
   const { t, language, setLanguage } = useI18n();
-  const { status, gatewayUrl, connect, disconnect } = useGateway();
+  const { status, gatewayUrl, connect, disconnect, send } = useGateway();
+  const { user, profile } = useAuth();
 
-  const [profileName, setProfileName] = useState('Akli Goudjil');
-  const [profileEmail, setProfileEmail] = useState('akli@pixel-drop.com');
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
+  const userInitial = (displayName[0] || 'U').toUpperCase();
+
+  const [profileName, setProfileName] = useState(displayName);
+  const [profileEmail, setProfileEmail] = useState(user?.email || '');
+  const [showEmergencyConfirm, setShowEmergencyConfirm] = useState(false);
+  const [emergencyRestarting, setEmergencyRestarting] = useState(false);
   const [gwUrl, setGwUrl] = useState(gatewayUrl || 'ws://localhost:18789');
   const [gwToken, setGwToken] = useState('');
   const [showGwToken, setShowGwToken] = useState(false);
@@ -120,6 +129,87 @@ export default function SettingsPage() {
       </header>
 
       <div className="p-8 max-w-3xl mx-auto space-y-6">
+        {/* Danger Zone - Emergency Stop */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#131825] border border-red-500/20 rounded-xl p-6"
+        >
+          <div className="flex items-center gap-3 mb-5">
+            <div className="p-2 rounded-lg bg-red-500/10 text-red-400">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">{t.emergencyStop.dangerZone}</h3>
+              <p className="text-xs text-slate-500">{t.emergencyStop.dangerZoneDesc}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-[#0B0F1A] rounded-lg border border-red-500/10">
+            <div>
+              <p className="text-sm font-semibold text-white">{t.emergencyStop.title}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{t.emergencyStop.desc}</p>
+            </div>
+            <button
+              onClick={() => setShowEmergencyConfirm(true)}
+              disabled={emergencyRestarting}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all",
+                emergencyRestarting
+                  ? "bg-red-900/50 text-red-300 cursor-not-allowed"
+                  : "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-900/30 active:scale-95"
+              )}
+            >
+              <OctagonX className="w-4 h-4" />
+              {emergencyRestarting ? t.emergencyStop.restarting : t.emergencyStop.button}
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Emergency Stop Confirmation Dialog */}
+        {showEmergencyConfirm && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowEmergencyConfirm(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-[#131825] border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-full bg-red-500/10">
+                  <AlertTriangle className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white">{t.emergencyStop.confirmTitle}</h3>
+              </div>
+              <p className="text-sm text-slate-400 mb-6">{t.emergencyStop.confirmDesc}</p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowEmergencyConfirm(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white border border-slate-700 hover:border-slate-600 transition-all"
+                >
+                  {t.emergencyStop.cancel}
+                </button>
+                <button
+                  onClick={async () => {
+                    setEmergencyRestarting(true);
+                    setShowEmergencyConfirm(false);
+                    try {
+                      await send('gateway.restart', {});
+                    } catch {
+                      // silent - gateway will disconnect anyway
+                    }
+                    setTimeout(() => setEmergencyRestarting(false), 5000);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-500 text-white transition-all active:scale-95"
+                >
+                  <OctagonX className="w-4 h-4" />
+                  {t.emergencyStop.confirm}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {/* Gateway Connection - HIDDEN FROM USERS */}
         <div style={{ display: 'none' }}>
         <Section title={t.gateway.title} desc={t.gateway.desc} icon={Wifi}>
@@ -227,18 +317,14 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-6 mb-4">
               <div className="relative group">
-                <img
-                  src="https://randomuser.me/api/portraits/men/91.jpg"
-                  alt="Avatar"
-                  className="w-16 h-16 rounded-full border-2 border-slate-700 object-cover"
-                />
-                <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                  <Camera className="w-5 h-5 text-white" />
+                <div className="w-16 h-16 rounded-full border-2 border-slate-700 flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700">
+                  <span className="text-2xl font-bold text-white select-none">{userInitial}</span>
                 </div>
               </div>
-              <button className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors">
-                {t.settings.changeAvatar}
-              </button>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-white">{displayName}</span>
+                <span className="text-xs text-slate-500">{user?.email || ''}</span>
+              </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium uppercase tracking-widest text-slate-500">{t.settings.name}</label>

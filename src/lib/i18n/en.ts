@@ -7,6 +7,7 @@ const en = {
     teams: "Teams",
     activity: "Activity",
     settings: "Settings",
+    skills: "Skills",
   },
   // Sidebar
   sidebar: {
@@ -351,6 +352,59 @@ const en = {
     genericError: "Something went wrong. Please try again.",
     terms: "By continuing, you agree to AgentBox Terms of Service and Privacy Policy.",
     signOut: "Sign Out",
+  },
+  // Skills page
+  skills: {
+    title: "Skills",
+    subtitle: "Manage available skills and assign them to your agents.",
+    navLabel: "Skills",
+    enabled: "Enabled",
+    disabled: "Disabled",
+    assignToAgents: "Assign to agents",
+    assignTitle: "Assign skill to agents",
+    noAgents: "No agents available",
+    assigned: "Assigned",
+    // Skill names
+    webSearch: "Web Search",
+    webSearchDesc: "Search the web for real-time information and data.",
+    email: "Email",
+    emailDesc: "Send, receive and manage emails automatically.",
+    calendar: "Calendar",
+    calendarDesc: "Schedule meetings and manage availability.",
+    crmSkill: "CRM",
+    crmSkillDesc: "Manage contacts, deals and sales pipeline.",
+    whatsapp: "WhatsApp",
+    whatsappDesc: "Send and receive WhatsApp messages.",
+    slack: "Slack",
+    slackDesc: "Interact with Slack channels and users.",
+    github: "GitHub",
+    githubDesc: "Manage repositories, issues and pull requests.",
+    weather: "Weather",
+    weatherDesc: "Get weather forecasts and current conditions.",
+  },
+  // Empty states
+  emptyState: {
+    agentsTitle: "Create your first agent",
+    agentsDesc: "Deploy AI agents that work autonomously on your behalf. Start by creating your first one.",
+    agentsButton: "Create an Agent",
+  },
+  // Emergency stop
+  emergencyStop: {
+    title: "Emergency Stop",
+    desc: "Restart gateway if AI is stuck",
+    button: "Emergency Stop",
+    dangerZone: "Danger Zone",
+    dangerZoneDesc: "Critical actions that affect your system.",
+    confirmTitle: "Are you sure?",
+    confirmDesc: "This will restart the gateway. All active agent sessions will be interrupted.",
+    confirm: "Yes, restart gateway",
+    cancel: "Cancel",
+    restarting: "Restarting...",
+    success: "Gateway restart signal sent",
+  },
+  // Profile menu
+  profileMenu: {
+    settings: "Settings",
   },
   // Toast
   toast: {

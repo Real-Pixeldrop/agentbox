@@ -499,7 +499,12 @@ export default function AgentBoxDashboard() {
       case 'settings':
         return <SettingsPage />;
       case 'skills':
-        return <SkillsPage agents={displayAgents.map(a => ({ id: a.id, name: a.name, photo: a.photo }))} />;
+        return <SkillsPage agents={displayAgents.map(a => ({ 
+          id: a.supabaseId || String(a.id), 
+          name: a.name, 
+          photo_url: a.photo, 
+          skills: [] // TODO: Load skills from Supabase 
+        }))} />;
       case 'activity':
         return <ActivityPage />;
       case 'scheduled-actions':

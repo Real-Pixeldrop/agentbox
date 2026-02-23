@@ -87,6 +87,7 @@ interface AgentSettingsPanelProps {
     channels: string[];
     schedule: string;
     gatewayAgentId?: string;
+    is_default?: boolean;
   };
   sessionKey: string;
   /** Navigate to the global scheduled actions page */
@@ -95,6 +96,8 @@ interface AgentSettingsPanelProps {
   supabaseAgentId?: string;
   /** Called after a successful profile save so parent can refresh agent data */
   onAgentUpdated?: () => void;
+  /** Called after successful agent deletion */
+  onAgentDeleted?: () => void;
 }
 
 interface MemoryFile {
@@ -125,12 +128,16 @@ type SettingsTab = 'general' | 'tools' | 'memory' | 'skills' | 'crons' | 'channe
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, onNavigateToScheduledActions, supabaseAgentId, onAgentUpdated }: AgentSettingsPanelProps) {
+export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, onNavigateToScheduledActions, supabaseAgentId, onAgentUpdated, onAgentDeleted }: AgentSettingsPanelProps) {
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
   const agentFiles = useAgentFiles(supabaseAgentId, sessionKey);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+  
+  // Delete agent modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Toast
   const [error, setError] = useState<string | null>(null);
@@ -622,6 +629,47 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
     }
   }, [supabaseAgentId, agentName, agentRole, agentPhoto, agent.photo, onAgentUpdated, t]);
 
+  // ─── Delete agent ──────────────────────────────────────────────────────
+
+  const deleteAgent = useCallback(async () => {
+    if (!supabaseAgentId || agent.is_default) {
+      setError(t.settingsPanel.deleteAgentFailed);
+      return;
+    }
+    
+    setDeleting(true);
+    setError(null);
+    
+    try {
+      // Delete from Supabase
+      const { error: deleteErr } = await supabase
+        .from('agents')
+        .delete()
+        .eq('id', supabaseAgentId);
+
+      if (deleteErr) throw deleteErr;
+
+      // Notify gateway if connected
+      if (isConnected && agent.gatewayAgentId) {
+        try {
+          await send('agent.delete', { agentId: agent.gatewayAgentId });
+        } catch {
+          // Don't fail entirely if gateway notification fails
+          console.warn('Failed to notify gateway of agent deletion');
+        }
+      }
+
+      setSuccess(t.settingsPanel.agentDeleted);
+      setShowDeleteModal(false);
+      onClose();
+      onAgentDeleted?.();
+    } catch {
+      setError(t.settingsPanel.deleteAgentFailed);
+    } finally {
+      setDeleting(false);
+    }
+  }, [supabaseAgentId, agent.is_default, agent.gatewayAgentId, isConnected, send, onClose, onAgentDeleted, t]);
+
   // ─── Memory note ────────────────────────────────────────────────────
 
   const saveMemoryNote = useCallback(async () => {
@@ -853,6 +901,25 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
               />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete agent section (only if not default agent) */}
+      {supabaseAgentId && !agent.is_default && (
+        <div className="pt-6 border-t border-slate-800">
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-slate-200 mb-1">{t.settingsPanel.dangerZone}</h4>
+              <p className="text-xs text-slate-500">{t.settingsPanel.dangerZoneDesc}</p>
+            </div>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-400 hover:text-red-300 rounded-lg text-sm font-medium transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              {t.settingsPanel.deleteAgent}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1531,6 +1598,73 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
               </AnimatePresence>
             </div>
           </motion.div>
+
+          {/* Delete confirmation modal */}
+          <AnimatePresence>
+            {showDeleteModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-60 flex items-center justify-center p-4"
+                onClick={() => !deleting && setShowDeleteModal(false)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  className="bg-[#131825] border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-red-600/10 flex items-center justify-center">
+                      <Trash2 className="w-5 h-5 text-red-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">{t.settingsPanel.deleteAgentTitle}</h3>
+                      <p className="text-xs text-slate-500">{t.settingsPanel.deleteAgentWarning}</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-4 p-3 bg-red-600/5 border border-red-600/20 rounded-lg">
+                    <p className="text-xs text-red-300 leading-relaxed">
+                      {t.settingsPanel.deleteAgentConfirmText.replace('{agentName}', agent.name)}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowDeleteModal(false)}
+                      disabled={deleting}
+                      className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {t.settingsPanel.cancel}
+                    </button>
+                    <button
+                      onClick={deleteAgent}
+                      disabled={deleting}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-all",
+                        deleting && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      {deleting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {t.settingsPanel.deleting}
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4" />
+                          {t.settingsPanel.deleteAgentConfirm}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </AnimatePresence>

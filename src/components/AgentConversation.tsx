@@ -35,6 +35,8 @@ interface AgentConversationProps {
     channels: string[];
     schedule: string;
   };
+  /** Session key for gateway communication */
+  sessionKey: string;
   onBack: () => void;
   onOpenSettings: () => void;
 }
@@ -46,7 +48,8 @@ interface ChatMessage {
   time: string;
 }
 
-const MOCK_MESSAGES: ChatMessage[] = [
+// Mock messages - only shown in demo mode (disconnected)
+const DEMO_MESSAGES: ChatMessage[] = [
   { id: 'm1', sender: 'agent', text: "Hello! I'm ready and operational. I've processed 12 emails this morning and updated the CRM pipeline.", time: '09:00' },
   { id: 'm2', sender: 'user', text: "Great. What's the status on the Simon invoice follow-up?", time: '09:05' },
   { id: 'm3', sender: 'agent', text: "I sent a follow-up to Simon R. yesterday at 14:05. He acknowledged receipt. The invoice is due in 3 days. I'll send a final reminder 24h before.", time: '09:05' },
@@ -56,7 +59,7 @@ const MOCK_MESSAGES: ChatMessage[] = [
   { id: 'm7', sender: 'agent', text: "On it. I'll research the company, check LinkedIn profiles, and prepare a qualification summary. ETA: 15 minutes.", time: '09:15' },
 ];
 
-export default function AgentConversation({ agent, onBack, onOpenSettings }: AgentConversationProps) {
+export default function AgentConversation({ agent, sessionKey, onBack, onOpenSettings }: AgentConversationProps) {
   const { t } = useI18n();
   const { isConnected, send, onEvent } = useGateway();
   const [activeTab, setActiveTab] = useState<'chat' | 'channels'>('chat');
@@ -76,17 +79,23 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
     scrollToBottom();
   }, [messages, streamingText]);
 
-  // Load history on mount
+  // Load history on mount or when sessionKey changes
   useEffect(() => {
+    setMessages([]);
+    setHistoryLoaded(false);
+    setStreamingText('');
+    setIsTyping(false);
+
     if (isConnected) {
+      // Live mode: load real history from gateway, start with empty chat
       loadHistory();
     } else {
       // Demo mode: show mock messages
-      setMessages(MOCK_MESSAGES);
+      setMessages(DEMO_MESSAGES);
       setHistoryLoaded(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected]);
+  }, [isConnected, sessionKey]);
 
   // Listen for streaming events
   useEffect(() => {
@@ -98,12 +107,12 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
 
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, onEvent]);
+  }, [isConnected, onEvent, sessionKey]);
 
   const loadHistory = useCallback(async () => {
     try {
       const result = await send<{ messages?: Array<{ role: string; content: string; timestamp?: string }> }>('chat.history', {
-        sessionKey: 'agent:main:main',
+        sessionKey,
       });
       if (result?.messages && result.messages.length > 0) {
         const parsed: ChatMessage[] = result.messages.map((msg, i) => ({
@@ -116,11 +125,12 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
         }));
         setMessages(parsed);
       }
+      // If no messages, that's fine — start with empty chat
     } catch {
-      // Fallback: show empty or keep existing
+      // Gateway error — start with empty chat
     }
     setHistoryLoaded(true);
-  }, [send]);
+  }, [send, sessionKey]);
 
   const handleStreamEvent = useCallback((event: GatewayEvent) => {
     const { type, data } = event;
@@ -129,10 +139,10 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
     if (type !== 'chat') return;
 
     const kind = data.kind as string | undefined;
-    const sessionKey = data.sessionKey as string | undefined;
+    const eventSessionKey = data.sessionKey as string | undefined;
 
-    // Only process events for the expected session
-    if (sessionKey && sessionKey !== 'agent:main:main') return;
+    // Only process events for our current session
+    if (eventSessionKey && eventSessionKey !== sessionKey) return;
 
     switch (kind) {
       case 'chunk': {
@@ -164,8 +174,7 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
       case 'error': {
         setIsTyping(false);
         setStreamingText('');
-        // Optionally show the error
-        const errorText = (data.error || 'Unknown error') as string;
+        const errorText = (data.error || data.text || 'Unknown error') as string;
         const errorMsg: ChatMessage = {
           id: `m${Date.now()}`,
           sender: 'agent',
@@ -176,7 +185,7 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
         break;
       }
     }
-  }, []);
+  }, [sessionKey]);
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
@@ -194,12 +203,11 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
     setStreamingText('');
 
     if (isConnected) {
-      // Live mode: send via gateway
+      // Live mode: send via gateway with sessionKey
       try {
-        await send('chat.send', { message: messageText, sessionKey: 'agent:main:main' });
+        await send('chat.send', { message: messageText, sessionKey });
       } catch {
         setIsTyping(false);
-        // Add error message
         const errorMsg: ChatMessage = {
           id: `m${Date.now() + 1}`,
           sender: 'agent',
@@ -331,6 +339,17 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
                   <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
                   {t.conversation.loadingHistory}
                 </div>
+              </div>
+            )}
+
+            {/* Empty state for connected mode with no history */}
+            {historyLoaded && messages.length === 0 && isConnected && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 bg-[#131825] rounded-full flex items-center justify-center mb-4 border border-slate-800">
+                  <MessageSquare className="w-7 h-7 text-slate-600" />
+                </div>
+                <p className="text-slate-500 text-sm mb-1">No messages yet</p>
+                <p className="text-slate-600 text-xs">Send a message to start the conversation</p>
               </div>
             )}
 

@@ -130,6 +130,9 @@ export default function CreateAgentWizard({ onClose, onLaunch }: AgentWizardProp
         const config = await send<Record<string, unknown>>('config.get', {});
         const currentAgents = (config?.agents as Record<string, unknown>)?.list as Array<Record<string, unknown>> || [];
 
+        // Generate a stable agent ID
+        const agentId = agentData.name.toLowerCase().replace(/\s+/g, '-') || `agent-${Date.now()}`;
+
         // Build SOUL.md content
         const soulContent = [
           `# ${agentData.name}`,
@@ -144,8 +147,9 @@ export default function CreateAgentWizard({ onClose, onLaunch }: AgentWizardProp
           formData.specialInstructions ? `## Special Instructions\n${formData.specialInstructions}` : '',
         ].filter(Boolean).join('\n');
 
-        // Add new agent to config
+        // Add new agent to config with an ID for session key generation
         const newAgentConfig = {
+          id: agentId,
           name: agentData.name,
           'SOUL.md': soulContent,
           skills: agentData.skills,

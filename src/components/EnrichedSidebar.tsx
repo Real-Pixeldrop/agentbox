@@ -18,6 +18,7 @@ import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
+import { useGateway } from '@/lib/GatewayContext';
 import ConnectionStatus from './ConnectionStatus';
 
 function cn(...inputs: ClassValue[]) {
@@ -29,6 +30,8 @@ interface EnrichedSidebarProps {
   onNavigate: (id: string) => void;
   favoriteAgents?: { id: string; name: string; photo: string; active?: boolean }[];
   onSelectAgent?: (id: string) => void;
+  /** Real agents from gateway or page state */
+  agents?: Array<{ id: number; name: string; photo: string; active: boolean }>;
 }
 
 interface NavItemProps {
@@ -126,35 +129,45 @@ export default function EnrichedSidebar({
   onNavigate,
   favoriteAgents = [],
   onSelectAgent,
+  agents = [],
 }: EnrichedSidebarProps) {
   const { t, language, toggleLanguage } = useI18n();
+  const { isConnected } = useGateway();
   
   const mainNavItems = [
     { id: 'home', label: t.nav.home, icon: House },
-    { id: 'agents', label: t.nav.myAgents, icon: Users },
+    { id: 'agents', label: t.nav.myAgents, icon: Users, badge: agents.length > 0 ? String(agents.length) : undefined },
     { id: 'templates', label: t.nav.templates, icon: LayoutGrid },
     { id: 'teams', label: t.nav.teams, icon: UsersRound },
     { id: 'activity', label: t.nav.activity, icon: BarChart3 },
     { id: 'settings', label: t.nav.settings, icon: Settings },
   ];
 
+  // When connected: use real favorites from parent. When disconnected: show demo defaults
   const defaultFavorites = [
     { id: 'fav1', name: 'Alexandre Dubois', photo: 'https://randomuser.me/api/portraits/men/32.jpg', active: true },
     { id: 'fav2', name: 'Sarah Cohen', photo: 'https://randomuser.me/api/portraits/women/68.jpg', active: true },
     { id: 'fav3', name: 'Marie Laurent', photo: 'https://randomuser.me/api/portraits/women/44.jpg', active: true },
   ];
 
-  const favorites = favoriteAgents.length > 0 ? favoriteAgents : defaultFavorites;
+  const favorites = isConnected
+    ? (favoriteAgents.length > 0 ? favoriteAgents : [])
+    : (favoriteAgents.length > 0 ? favoriteAgents : defaultFavorites);
 
   const teams = [
     { id: 'team1', name: 'Sales Team', color: 'bg-emerald-500', count: 3 },
     { id: 'team2', name: 'Support Team', color: 'bg-amber-500', count: 2 },
   ];
 
-  const recentAgents = [
+  // When connected: show real agents as recent. When disconnected: show demo
+  const recentAgentsDemo = [
     { name: 'Hugo Martin', avatar: 'https://randomuser.me/api/portraits/men/75.jpg', time: '2m' },
     { name: 'Sarah Cohen', avatar: 'https://randomuser.me/api/portraits/women/68.jpg', time: '1h' },
   ];
+
+  const recentAgents = isConnected
+    ? agents.slice(0, 3).map(a => ({ name: a.name, avatar: a.photo, time: a.active ? '●' : '—' }))
+    : recentAgentsDemo;
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-[240px] flex-col border-r border-slate-800/50 bg-[#0F1219] text-slate-200 antialiased selection:bg-blue-500/30">
@@ -185,18 +198,22 @@ export default function EnrichedSidebar({
         </nav>
 
         {/* Favorites Section */}
-        <SectionHeader title={t.sidebar.favorites} icon={Star} actionIcon={Plus} />
-        <div className="space-y-0.5">
-          {favorites.map((agent) => (
-            <AgentLink 
-              key={agent.id} 
-              name={agent.name} 
-              avatarUrl={agent.photo}
-              isAgentActive={agent.active}
-              onClick={() => onSelectAgent ? onSelectAgent(agent.id) : onNavigate('agents')}
-            />
-          ))}
-        </div>
+        {favorites.length > 0 && (
+          <>
+            <SectionHeader title={t.sidebar.favorites} icon={Star} actionIcon={Plus} />
+            <div className="space-y-0.5">
+              {favorites.map((agent) => (
+                <AgentLink 
+                  key={agent.id} 
+                  name={agent.name} 
+                  avatarUrl={agent.photo}
+                  isAgentActive={agent.active}
+                  onClick={() => onSelectAgent ? onSelectAgent(agent.id) : onNavigate('agents')}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Teams Section */}
         <SectionHeader title={t.sidebar.teams} icon={UsersRound} actionIcon={Plus} />
@@ -213,24 +230,28 @@ export default function EnrichedSidebar({
         </div>
 
         {/* Recent Agents */}
-        <SectionHeader title={t.sidebar.recent} />
-        <div className="space-y-3 px-3 py-1">
-          {recentAgents.map((agent, i) => (
-            <div key={i} className="flex items-center justify-between group cursor-pointer" onClick={() => onNavigate('agents')}>
-              <div className="flex items-center gap-3">
-                <img src={agent.avatar} alt="" className="h-5 w-5 rounded-full grayscale group-hover:grayscale-0 transition-all" />
-                <span className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors">{agent.name}</span>
-              </div>
-              <span className="text-[10px] text-slate-700 font-mono">{agent.time}</span>
+        {recentAgents.length > 0 && (
+          <>
+            <SectionHeader title={t.sidebar.recent} />
+            <div className="space-y-3 px-3 py-1">
+              {recentAgents.map((agent, i) => (
+                <div key={i} className="flex items-center justify-between group cursor-pointer" onClick={() => onNavigate('agents')}>
+                  <div className="flex items-center gap-3">
+                    <img src={agent.avatar} alt="" className="h-5 w-5 rounded-full grayscale group-hover:grayscale-0 transition-all" />
+                    <span className="text-xs text-slate-500 group-hover:text-slate-300 transition-colors">{agent.name}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-700 font-mono">{agent.time}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Bottom Area */}
       <div className="mt-auto border-t border-slate-800/50 p-4 space-y-4">
         
-        {/* Gateway Connection Status */}
+        {/* Gateway Connection Status — PROMINENT */}
         <div className="flex justify-start">
           <ConnectionStatus />
         </div>

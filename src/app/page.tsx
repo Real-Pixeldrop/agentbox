@@ -413,10 +413,6 @@ export default function AgentBoxDashboard() {
             setSelectedAgentId(null);
             setCurrentPage('agents');
           }}
-          onOpenSettings={() => {
-            setShowAgentDetail(true);
-            setCurrentPage('agent-detail');
-          }}
         />
       );
     }

@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Send,
   Settings,
-  Radio,
   MessageSquare,
   Paperclip,
   Mic,
@@ -19,7 +18,7 @@ import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import type { GatewayEvent } from '@/lib/gateway';
-import ChannelConfig from './ChannelConfig';
+import AgentSettingsPanel from './AgentSettingsPanel';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -63,7 +62,7 @@ interface AgentConversationProps {
   /** Session key for gateway communication */
   sessionKey: string;
   onBack: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
 }
 
 interface ChatMessage {
@@ -87,7 +86,7 @@ const DEMO_MESSAGES: ChatMessage[] = [
 export default function AgentConversation({ agent, sessionKey, onBack, onOpenSettings }: AgentConversationProps) {
   const { t } = useI18n();
   const { isConnected, send, onEvent } = useGateway();
-  const [activeTab, setActiveTab] = useState<'chat' | 'channels'>('chat');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -383,36 +382,8 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
             <span className="text-[11px] text-slate-400 font-medium">1.2k {t.agents.tokensToday} · $0.03 {t.agents.today}</span>
           </div>
 
-          {/* Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-[#131825] border border-slate-800 rounded-lg">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                activeTab === 'chat'
-                  ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                  : "text-slate-400 hover:text-white"
-              )}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              {t.conversation.chat}
-            </button>
-            <button
-              onClick={() => setActiveTab('channels')}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                activeTab === 'channels'
-                  ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                  : "text-slate-400 hover:text-white"
-              )}
-            >
-              <Radio className="w-3.5 h-3.5" />
-              {t.conversation.channels}
-            </button>
-          </div>
-
           <button
-            onClick={onOpenSettings}
+            onClick={() => setSettingsOpen(true)}
             className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
             title={t.conversation.agentSettings}
           >
@@ -424,10 +395,16 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
         </div>
       </header>
 
-      {/* Content */}
-      {activeTab === 'chat' ? (
-        <>
-          {/* Messages */}
+      {/* Settings Panel */}
+      <AgentSettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        agent={agent}
+        sessionKey={sessionKey}
+      />
+
+      {/* Chat Content */}
+      {/* Messages */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
             {!historyLoaded && isConnected && (
               <div className="flex items-center justify-center py-8">
@@ -566,12 +543,6 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
               </button>
             </div>
           </div>
-        </>
-      ) : (
-        <div className="flex-1 overflow-y-auto">
-          <ChannelConfig agentChannels={agent.channels} />
-        </div>
-      )}
     </div>
   );
 }

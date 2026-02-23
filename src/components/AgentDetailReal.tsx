@@ -676,7 +676,6 @@ No activities recorded for this date.
                       }}
                       sessionKey={sessionKey}
                       onBack={() => setActiveTab('personality')}
-                      onOpenSettings={() => setActiveTab('personality')}
                     />
                   </div>
                 )}

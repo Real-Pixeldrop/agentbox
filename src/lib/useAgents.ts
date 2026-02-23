@@ -163,6 +163,7 @@ export function useAgents() {
 
         const defaults = (config?.agents as Record<string, unknown>)?.defaults as Record<string, unknown> | undefined;
         const workspacePath = defaults?.workspace as string || '/root/agentbox-workspace';
+        const supabaseUUID = (newAgent as Agent).id;
         const newAgentConfig = generateGatewayAgentConfig({
           id: agentId,
           name: agentData.name,
@@ -170,7 +171,7 @@ export function useAgents() {
           tone: agentData.tone,
           industry: agentData.industry,
           skills: agentData.skills
-        }, workspacePath);
+        }, workspacePath, supabaseUUID);
 
         const newConfig = {
           ...config,

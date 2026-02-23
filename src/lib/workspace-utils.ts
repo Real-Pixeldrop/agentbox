@@ -178,8 +178,14 @@ export function generateGatewayAgentConfig(agent: {
   tone?: string;
   industry?: string;
   skills: string[];
-}, workspacePath: string) {
+}, workspacePath: string, supabaseId?: string) {
   const soulContent = generateAgentWorkspaceFiles(agent)[0].content;
+  
+  // Use /data/users/{supabaseId}/workspace so the gateway writes
+  // to the same filesystem the REST API reads from.
+  const workspace = supabaseId
+    ? `/data/users/${supabaseId}/workspace`
+    : `${workspacePath}/${agent.id}`;
   
   return {
     id: agent.id,
@@ -187,7 +193,7 @@ export function generateGatewayAgentConfig(agent: {
     'SOUL.md': soulContent,
     skills: agent.skills,
     enabled: true,
-    workspace: `${workspacePath}/${agent.id}`,
+    workspace,
     model: {
       primary: 'anthropic/claude-sonnet-4-20250514'
     },

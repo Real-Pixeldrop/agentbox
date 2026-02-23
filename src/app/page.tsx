@@ -22,6 +22,8 @@ import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useAgents } from '@/lib/useAgents';
+import { useTeams } from '@/lib/useTeams';
+import { useNotifications } from '@/lib/useNotifications';
 import type { Agent as SupabaseAgent } from '@/lib/supabase';
 import AuthPage from '@/components/AuthPage';
 import EnrichedSidebar from '@/components/EnrichedSidebar';
@@ -34,7 +36,7 @@ import AgentConversation from '@/components/AgentConversation';
 import SettingsPage from '@/components/SettingsPage';
 import SkillsPage from '@/components/SkillsPage';
 import ActivityPage from '@/components/ActivityPage';
-import NotificationsPanel, { type Notification } from '@/components/NotificationsPanel';
+import NotificationsPanel from '@/components/NotificationsPanel';
 import Toast from '@/components/Toast';
 
 function cn(...inputs: ClassValue[]) {
@@ -168,35 +170,46 @@ export default function AgentBoxDashboard() {
   const [showAgentDetail, setShowAgentDetail] = useState(false);
   const [agentMenuId, setAgentMenuId] = useState<number | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toast, setToast] = useState<{ visible: boolean; message: string; description?: string }>({
     visible: false,
     message: '',
   });
   const [currentSessionKey, setCurrentSessionKey] = useState<string>('agent:main:main');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { t } = useI18n();
   const { isConnected } = useGateway();
   const { agents: supabaseAgents, loading: agentsLoading, createAgent, deleteAgent, updateAgentStatus, fetchAgents } = useAgents();
+  const { teams: supabaseTeams, loading: teamsLoading } = useTeams();
+  const { notifications: realNotifications, unreadCount: realUnreadCount, addNotification, markAsRead, markAllAsRead } = useNotifications();
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = realUnreadCount;
 
   // Convert Supabase agents to display format, or show demo agents if none
   useEffect(() => {
     if (agentsLoading) return;
 
+    let agentsToDisplay: AgentData[] = [];
+
     if (supabaseAgents.length > 0) {
       // Real agents from Supabase
-      const converted = supabaseAgents.map((a, i) => supabaseToAgentData(a, i, t.agents as unknown as Record<string, string>));
-      setDisplayAgents(converted);
+      agentsToDisplay = supabaseAgents.map((a, i) => supabaseToAgentData(a, i, t.agents as unknown as Record<string, string>));
     } else if (!user) {
       // Not logged in: show demo
-      setDisplayAgents(DEMO_AGENTS);
-    } else {
-      // Logged in but no agents: empty list
-      setDisplayAgents([]);
+      agentsToDisplay = DEMO_AGENTS;
     }
-  }, [supabaseAgents, agentsLoading, user, t]);
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      agentsToDisplay = agentsToDisplay.filter(agent => 
+        agent.name.toLowerCase().includes(query) ||
+        agent.role.toLowerCase().includes(query)
+      );
+    }
+
+    setDisplayAgents(agentsToDisplay);
+  }, [supabaseAgents, agentsLoading, user, t, searchQuery]);
 
   // Close agent menu when clicking outside
   useEffect(() => {
@@ -268,7 +281,7 @@ export default function AgentBoxDashboard() {
   };
 
   const handleAgentCreated = useCallback(
-    (supabaseAgent: SupabaseAgent) => {
+    async (supabaseAgent: SupabaseAgent) => {
       // Agent was saved to Supabase (and potentially gateway) via useAgents.createAgent
       // Refresh the agent list
       fetchAgents();
@@ -283,16 +296,11 @@ export default function AgentBoxDashboard() {
       });
 
       // Add notification
-      const newNotif: Notification = {
-        id: `n${Date.now()}`,
-        type: 'task',
-        agentName: supabaseAgent.name,
-        agentPhoto: supabaseAgent.photo_url || '',
-        message: 'has been created and is now active.',
-        time: 'just now',
-        read: false,
-      };
-      setNotifications((prev) => [newNotif, ...prev]);
+      await addNotification({
+        type: 'success',
+        title: 'Agent créé',
+        message: `L'agent ${supabaseAgent.name} a été créé et est maintenant actif.`,
+      });
 
       // Navigate to the agent's conversation
       const sessionKey = supabaseAgent.gateway_session_key || `agent:${supabaseAgent.gateway_agent_id || supabaseAgent.name.toLowerCase().replace(/\s+/g, '-')}:main`;
@@ -381,14 +389,12 @@ export default function AgentBoxDashboard() {
     }
   };
 
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handleMarkAllRead = async () => {
+    await markAllAsRead();
   };
 
-  const handleMarkRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  const handleMarkRead = async (id: string) => {
+    await markAsRead(id);
   };
 
   const formatTokens = (n: number): string => {
@@ -494,6 +500,8 @@ export default function AgentBoxDashboard() {
           <input
             type="text"
             placeholder={t.agents.search}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-900/50 border border-slate-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder:text-slate-600"
           />
         </div>
@@ -514,7 +522,15 @@ export default function AgentBoxDashboard() {
             <AnimatePresence>
               {showNotifications && (
                 <NotificationsPanel
-                  notifications={notifications}
+                  notifications={realNotifications.map(n => ({
+                    id: n.id,
+                    type: n.type === 'success' ? 'task' : n.type === 'info' ? 'reminder' : n.type === 'warning' ? 'reminder' : 'error',
+                    agentName: n.title,
+                    agentPhoto: '',
+                    message: n.message,
+                    time: new Date(n.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+                    read: n.read,
+                  }))}
                   onMarkAllRead={handleMarkAllRead}
                   onMarkRead={handleMarkRead}
                   onClose={() => setShowNotifications(false)}
@@ -847,6 +863,7 @@ export default function AgentBoxDashboard() {
         favoriteAgents={favoriteAgents}
         onSelectAgent={handleSelectAgent}
         agents={displayAgents}
+        teams={supabaseTeams}
         mobileOpen={sidebarOpen}
         onMobileClose={() => setSidebarOpen(false)}
       />

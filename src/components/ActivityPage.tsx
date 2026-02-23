@@ -54,6 +54,7 @@ export default function ActivityPage() {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,6 +149,14 @@ export default function ActivityPage() {
   const filteredActivity = activity.filter(event => {
     if (activeFilter !== 'all' && event.type !== activeFilter) return false;
     if (agentFilter !== 'all' && event.agentName !== agentFilter) return false;
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      return (
+        event.title.toLowerCase().includes(query) ||
+        event.description.toLowerCase().includes(query) ||
+        event.agentName.toLowerCase().includes(query)
+      );
+    }
     return true;
   });
 
@@ -162,9 +171,21 @@ export default function ActivityPage() {
     <div className="min-h-screen bg-[#0B0F1A] text-slate-200">
       {/* Header */}
       <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-4 sm:px-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-white">{t.activity.title}</h1>
-          <p className="text-xs text-slate-500">{t.activity.subtitle}</p>
+        <div className="flex items-center gap-6">
+          <div>
+            <h1 className="text-xl font-bold text-white">{t.activity.title}</h1>
+            <p className="text-xs text-slate-500">{t.activity.subtitle}</p>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+            <input
+              type="text"
+              placeholder={t.activity.search || 'Rechercher dans l\'activité...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-64 bg-slate-900/50 border border-slate-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder:text-slate-600"
+            />
+          </div>
         </div>
       </header>
 

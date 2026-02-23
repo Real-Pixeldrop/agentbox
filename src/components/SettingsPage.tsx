@@ -293,11 +293,29 @@ export default function SettingsPage() {
                     setEmergencyRestarting(true);
                     setShowEmergencyConfirm(false);
                     try {
+                      // Try gateway.restart command first
                       await send('gateway.restart', {});
-                    } catch {
-                      // silent - gateway will disconnect anyway
+                    } catch (error) {
+                      console.log('Gateway restart command failed, trying HTTP fallback:', error);
+                      // Fallback: HTTP POST request to restart the gateway
+                      try {
+                        await fetch('https://gateway.pixel-drop.com/restart', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer REDACTED_GATEWAY_TOKEN',
+                          },
+                        });
+                      } catch (httpError) {
+                        console.error('HTTP restart also failed:', httpError);
+                      }
                     }
-                    setTimeout(() => setEmergencyRestarting(false), 5000);
+                    // Wait 10 seconds, then try to reconnect
+                    setTimeout(() => {
+                      setEmergencyRestarting(false);
+                      // Try to reconnect to gateway
+                      connect(gatewayUrl || 'ws://localhost:18789', '');
+                    }, 10000);
                   }}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-500 text-white transition-all active:scale-95"
                 >

@@ -118,12 +118,34 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
     }
   }, [showAgentPicker]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
-    if (onSendMessage) {
-      onSendMessage(inputValue.trim(), selectedAgent?.id ?? null);
-    }
+    
+    const message = inputValue.trim();
     setInputValue("");
+
+    // Determine session key
+    let sessionKey = 'agent:main:main'; // Default to main agent
+    if (selectedAgent?.sessionKey) {
+      sessionKey = selectedAgent.sessionKey;
+    }
+
+    try {
+      // Send message via gateway if connected
+      if (isConnected) {
+        await send('chat.send', {
+          sessionKey,
+          message,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+
+    // Always call the parent handler to navigate to conversation
+    if (onSendMessage) {
+      onSendMessage(message, selectedAgent?.id ?? null);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

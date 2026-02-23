@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase, type Agent } from './supabase';
 import { useAuth } from './AuthContext';
 import { useGateway } from './GatewayContext';
+import { generateGatewayAgentConfig } from './workspace-utils';
 
 /**
  * Hook that manages agents from Supabase + Gateway.
@@ -110,13 +111,16 @@ export function useAgents() {
         const config = await send<Record<string, unknown>>('config.get', {});
         const currentAgents = (config?.agents as Record<string, unknown>)?.list as Array<Record<string, unknown>> || [];
 
-        const newAgentConfig = {
+        const defaults = (config?.agents as Record<string, unknown>)?.defaults as Record<string, unknown> | undefined;
+        const workspacePath = defaults?.workspace as string || '/root/agentbox-workspace';
+        const newAgentConfig = generateGatewayAgentConfig({
           id: agentId,
           name: agentData.name,
-          'SOUL.md': soulContent,
-          skills: agentData.skills,
-          enabled: true,
-        };
+          description: agentData.description,
+          tone: agentData.tone,
+          industry: agentData.industry,
+          skills: agentData.skills
+        }, workspacePath);
 
         const newConfig = {
           ...config,

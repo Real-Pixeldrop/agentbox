@@ -88,6 +88,7 @@ export function useAgents() {
     const lang = agentData.language || 'FR';
 
     // Build SOUL.md content based on language
+    // Includes humanizer rules so agents write naturally (short messages, no AI patterns)
     const soulContent = lang === 'FR'
       ? [
           `# ${agentData.name}`,
@@ -98,6 +99,15 @@ export function useAgents() {
           `## Style de communication`,
           `Ton : ${agentData.tone}`,
           agentData.industry ? `Secteur : ${agentData.industry}` : '',
+          '',
+          `## Règles de communication (obligatoires)`,
+          `- Réponses COURTES et directes. Maximum 3-4 phrases par message.`,
+          `- Si tu dois expliquer quelque chose de long, découpe en plusieurs petits paragraphes.`,
+          `- Pas de listes à rallonge. 3 points max.`,
+          `- Pas de formules creuses ("N'hésitez pas", "Je suis là pour vous aider", "Bien sûr !").`,
+          `- Pas de tiret long (—). Pas d'emojis excessifs.`,
+          `- Écris comme un humain compétent, pas comme un chatbot.`,
+          `- Quand tu fais une action (créer un fichier, chercher une info), dis juste ce que tu fais et le résultat. Pas de narration.`,
           '',
           agentData.specialInstructions ? `## Instructions spéciales\n${agentData.specialInstructions}` : '',
         ].filter(Boolean).join('\n')
@@ -110,6 +120,15 @@ export function useAgents() {
           `## Communication Style`,
           `Tone: ${agentData.tone}`,
           agentData.industry ? `Industry: ${agentData.industry}` : '',
+          '',
+          `## Communication Rules (mandatory)`,
+          `- Keep responses SHORT and direct. 3-4 sentences max per message.`,
+          `- For longer explanations, break into small paragraphs.`,
+          `- No long bullet lists. 3 items max.`,
+          `- No filler phrases ("Feel free to", "I'm here to help", "Of course!").`,
+          `- No em dashes (—). No excessive emojis.`,
+          `- Write like a competent human, not a chatbot.`,
+          `- When performing actions (creating files, searching), just state what you did and the result. No narration.`,
           '',
           agentData.specialInstructions ? `## Special Instructions\n${agentData.specialInstructions}` : '',
         ].filter(Boolean).join('\n');

@@ -229,6 +229,7 @@ const fr: Translations = {
     online: "En ligne",
     offline: "Hors ligne",
     thinking: "Réflexion...",
+    isTyping: "est en train d'écrire",
     demoBanner: "Mode démo — Connectez le gateway pour des agents en direct",
     loadingHistory: "Chargement de l'historique...",
     welcomeMessage: "Bonjour {name} ! Je suis {agent}, {role}. Comment puis-je vous aider aujourd'hui ?",

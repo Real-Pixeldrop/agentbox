@@ -227,6 +227,7 @@ const en = {
     online: "Online",
     offline: "Offline",
     thinking: "Thinking...",
+    isTyping: "is typing",
     demoBanner: "Demo mode — Connect gateway for live agents",
     loadingHistory: "Loading conversation history...",
     welcomeMessage: "Hi {name}! I'm {agent}, {role}. How can I help you today?",

@@ -596,11 +596,15 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
                 <AgentAvatar name={agent.name} photo={agent.photo} size="xs" />
                 <div className="bg-[#1E293B] border border-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3 max-w-[70%]">
                   <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{streamingText}</p>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" />
+                    <span className="text-[10px] text-slate-500 italic">{agent.name} {t.conversation.isTyping || 'is typing'}</span>
+                  </div>
                 </div>
               </motion.div>
             )}
 
-            {/* Typing indicator */}
+            {/* Typing indicator — shown while agent is thinking (before first delta) */}
             {isTyping && !streamingText && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -608,12 +612,14 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
                 className="flex items-end gap-2"
               >
                 <AgentAvatar name={agent.name} photo={agent.photo} size="xs" />
-                <div className="bg-[#1E293B] border border-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-slate-400 mr-1">{t.conversation.thinking}</span>
-                    <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce [animation-delay:0ms]" />
-                    <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce [animation-delay:150ms]" />
-                    <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce [animation-delay:300ms]" />
+                <div className="bg-[#1E293B] border border-slate-700/50 rounded-2xl rounded-bl-md px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse [animation-delay:0ms]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse [animation-delay:300ms]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse [animation-delay:600ms]" />
+                    </div>
+                    <span className="text-xs text-slate-400 italic">{agent.name} {t.conversation.isTyping || 'is typing'}</span>
                   </div>
                 </div>
               </motion.div>

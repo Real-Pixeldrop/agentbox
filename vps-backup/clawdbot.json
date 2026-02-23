@@ -1,0 +1,27 @@
+{
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "lan",
+    "trustedProxies": ["127.0.0.1", "::1"],
+    "auth": {
+      "mode": "token",
+      "token": "4q-9qM_2o9wi_0lhkps-UruqOVUrb2IrW8cFxdOMgyw"
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-20250514"
+      },
+      "workspace": "/root/agentbox-workspace",
+      "contextTokens": 200000
+    },
+    "list": [
+      {
+        "id": "main",
+        "name": "Agent Principal"
+      }
+    ]
+  }
+}

@@ -1,36 +1,49 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { useI18n } from '@/lib/i18n';
-import { Bot, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Bot, Zap, Globe, Shield } from 'lucide-react';
+
+const rotatingTexts = [
+  { title: "Deploy AI agents in minutes", subtitle: "Connect to WhatsApp, Email, Slack and more — no code required" },
+  { title: "Your team, amplified", subtitle: "Each agent handles a role: support, sales, scheduling, operations" },
+  { title: "One dashboard, full control", subtitle: "Monitor conversations, costs, and performance in real time" },
+  { title: "Built on open infrastructure", subtitle: "Powered by Claude, deployed on your own gateway" },
+];
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [currentTextIndex, setCurrentTextIndex] = useState(0);
 
   const { signIn, signUp } = useAuth();
-  const { t } = useI18n();
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTextIndex((prev) => (prev + 1) % rotatingTexts.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
+    setMessage(null);
     setLoading(true);
 
     try {
       if (mode === 'signin') {
         const { error: err } = await signIn(email, password);
         if (err) setError(err);
-      } else {
-        if (!fullName.trim()) {
-          setError(t.auth.fullNameRequired);
+      } else if (mode === 'signup') {
+        if (password.length < 6) {
+          setError('Password must be at least 6 characters');
           setLoading(false);
           return;
         }
@@ -38,173 +51,248 @@ export default function AuthPage() {
         if (err) {
           setError(err);
         } else {
-          setSuccess(t.auth.signUpSuccess);
+          setMessage('Account created! Check your email to confirm.');
+          setMode('signin');
         }
       }
     } catch {
-      setError(t.auth.genericError);
+      setError('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleMode = () => {
-    setMode(mode === 'signin' ? 'signup' : 'signin');
-    setError(null);
-    setSuccess(null);
-  };
-
   return (
-    <div className="min-h-screen bg-[#0B1120] flex items-center justify-center p-4">
-      {/* Background gradient orbs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-600/10 rounded-full blur-[128px]" />
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-indigo-600/10 rounded-full blur-[128px]" />
+    <div className="min-h-screen bg-[#0A0A0C] flex">
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0A0A0C] via-[#0F0A1A] to-[#1A0A2E]" />
+        
+        {/* Subtle grid pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px'
+          }}
+        />
+
+        {/* Glow effect */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[120px]" />
+
+        {/* Content */}
+        <div className="relative z-10 p-12 flex flex-col justify-between w-full">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-blue-500 rounded-xl flex items-center justify-center">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-white tracking-tight">
+              AgentBox
+            </span>
+            <span className="text-[9px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+              Beta
+            </span>
+          </div>
+
+          {/* Rotating text */}
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <div className="min-h-[140px]">
+                <h2 className="text-4xl font-bold text-white leading-tight transition-all duration-500">
+                  {rotatingTexts[currentTextIndex].title}
+                </h2>
+                <p className="text-lg text-slate-400 mt-3 transition-all duration-500">
+                  {rotatingTexts[currentTextIndex].subtitle}
+                </p>
+              </div>
+
+              {/* Dots */}
+              <div className="flex gap-2">
+                {rotatingTexts.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      index === currentTextIndex ? 'w-8 bg-violet-400' : 'w-1.5 bg-white/20'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Trust badges */}
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/5">
+                <Zap className="w-4 h-4 text-yellow-400" />
+                <span className="text-sm text-slate-300">Powered by Claude</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/5">
+                <Globe className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-slate-300">Multi-channel</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/5">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm text-slate-300">Your infrastructure</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="relative w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25 mb-4">
-            <Bot size={28} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">AgentBox</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            {mode === 'signin' ? t.auth.signInSubtitle : t.auth.signUpSubtitle}
-          </p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-[#131825]/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-2xl shadow-black/40">
-          {/* Toggle tabs */}
-          <div className="flex mb-6 bg-slate-900/50 rounded-lg p-1">
-            <button
-              onClick={() => { setMode('signin'); setError(null); setSuccess(null); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
-                mode === 'signin'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              {t.auth.signIn}
-            </button>
-            <button
-              onClick={() => { setMode('signup'); setError(null); setSuccess(null); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
-                mode === 'signup'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              {t.auth.signUp}
-            </button>
+      {/* Right Side - Auth Form */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          {/* Mobile Logo */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="inline-flex items-center gap-3 justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-blue-500 rounded-xl flex items-center justify-center">
+                <Bot className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-2xl font-bold text-white tracking-tight">AgentBox</span>
+              <span className="text-[9px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded font-bold">BETA</span>
+            </div>
+            <p className="text-sm text-slate-500 mt-2">AI agents, deployed in minutes</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name (signup only) */}
-            {mode === 'signup' && (
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                  {t.auth.fullName}
-                </label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder={t.auth.fullNamePlaceholder}
-                  className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-2.5 px-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-                  autoComplete="name"
-                />
-              </div>
-            )}
+          <div className="bg-[#111118] rounded-2xl border border-white/[0.06] p-8 shadow-2xl">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {mode === 'signin' && 'Welcome back'}
+              {mode === 'signup' && 'Create your account'}
+              {mode === 'reset' && 'Reset password'}
+            </h2>
+            <p className="text-slate-500 mb-6">
+              {mode === 'signin' && 'Sign in to manage your AI agents.'}
+              {mode === 'signup' && 'Get started for free. No credit card required.'}
+              {mode === 'reset' && 'Enter your email to receive a reset link.'}
+            </p>
 
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                {t.auth.email}
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t.auth.emailPlaceholder}
-                className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-2.5 px-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                {t.auth.password}
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t.auth.passwordPlaceholder}
-                  className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-2.5 px-4 pr-10 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-                  required
-                  minLength={6}
-                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Error */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-sm text-red-400">
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
                 {error}
               </div>
             )}
 
-            {/* Success */}
-            {success && (
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 text-sm text-green-400">
-                {success}
+            {message && (
+              <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-sm text-emerald-400">
+                {message}
               </div>
             )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white py-2.5 rounded-lg text-sm font-semibold transition-all shadow-lg shadow-blue-900/30 flex items-center justify-center gap-2"
-            >
-              {loading && <Loader2 size={16} className="animate-spin" />}
-              {loading
-                ? t.auth.loading
-                : mode === 'signin'
-                  ? t.auth.signInButton
-                  : t.auth.signUpButton}
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === 'signup' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Full name</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-transparent text-white placeholder:text-slate-600 transition-all"
+                    placeholder="John Doe"
+                    required
+                  />
+                </div>
+              )}
 
-          {/* Toggle link */}
-          <p className="text-center text-sm text-slate-400 mt-6">
-            {mode === 'signin' ? t.auth.noAccount : t.auth.hasAccount}{' '}
-            <button
-              onClick={toggleMode}
-              className="text-blue-400 hover:text-blue-300 font-semibold transition-colors"
-            >
-              {mode === 'signin' ? t.auth.signUp : t.auth.signIn}
-            </button>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-transparent text-white placeholder:text-slate-600 transition-all"
+                    placeholder="you@company.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              {mode !== 'reset' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-12 py-3 bg-white/[0.04] border border-white/[0.08] rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-transparent text-white placeholder:text-slate-600 transition-all"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {mode === 'signin' && (
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => { setMode('reset'); setError(null); setMessage(null); }}
+                    className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white py-3 px-4 rounded-lg font-medium transition-all disabled:opacity-50 shadow-lg shadow-violet-500/20"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    {mode === 'signin' && 'Sign in'}
+                    {mode === 'signup' && 'Create account'}
+                    {mode === 'reset' && 'Send reset link'}
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center text-sm">
+              {mode === 'signin' && (
+                <p className="text-slate-500">
+                  Don&apos;t have an account?{' '}
+                  <button
+                    onClick={() => { setMode('signup'); setError(null); setMessage(null); }}
+                    className="text-violet-400 hover:text-violet-300 font-medium transition-colors"
+                  >
+                    Sign up free
+                  </button>
+                </p>
+              )}
+              {(mode === 'signup' || mode === 'reset') && (
+                <p className="text-slate-500">
+                  Already have an account?{' '}
+                  <button
+                    onClick={() => { setMode('signin'); setError(null); setMessage(null); }}
+                    className="text-violet-400 hover:text-violet-300 font-medium transition-colors"
+                  >
+                    Sign in
+                  </button>
+                </p>
+              )}
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-slate-600 mt-6">
+            By continuing, you agree to our Terms of Service and Privacy Policy.
           </p>
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-slate-600 mt-6">
-          {t.auth.terms}
-        </p>
       </div>
     </div>
   );

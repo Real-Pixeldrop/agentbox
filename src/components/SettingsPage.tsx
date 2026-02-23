@@ -1249,7 +1249,7 @@ function WorkspaceTab() {
 // ============================================================
 
 export default function SettingsPage() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
   const tabs: { key: SettingsTab; label: string; icon: React.ElementType }[] = [
@@ -1308,13 +1308,13 @@ export default function SettingsPage() {
         <div className="mt-12 pt-6 border-t border-slate-800/30 flex items-center gap-4 text-xs text-slate-600">
           <span>Legal</span>
           <a href="/legal/mentions" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400 transition-colors">
-            Legal Notice
+            {language === 'FR' ? 'Mentions légales' : 'Legal Notice'}
           </a>
           <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400 transition-colors">
-            Terms of Service
+            {language === 'FR' ? 'CGU' : 'Terms of Service'}
           </a>
           <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400 transition-colors">
-            Privacy Policy
+            {language === 'FR' ? 'Politique de confidentialité' : 'Privacy Policy'}
           </a>
           <a href="/legal/dpa" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400 transition-colors">
             DPA

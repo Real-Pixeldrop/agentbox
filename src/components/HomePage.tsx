@@ -19,6 +19,8 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
+import { useAuth } from '@/lib/AuthContext';
+import { uploadAttachment } from '@/lib/storage';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -84,6 +86,7 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [modelName, setModelName] = useState(activeModel || '');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -91,6 +94,7 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
+  const { user } = useAuth();
 
   // Fetch model from gateway config
   useEffect(() => {
@@ -126,6 +130,7 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
   // Image attachment handlers
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    setAttachedFile(file);
     const reader = new FileReader();
     reader.onload = () => setAttachedImage(reader.result as string);
     reader.readAsDataURL(file);
@@ -166,9 +171,16 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
   const handleSend = async () => {
     if (!inputValue.trim() && !attachedImage) return;
     
+    // Upload image to Supabase Storage if present
+    let imageUrl: string | null = null;
+    if (attachedFile && user?.id) {
+      imageUrl = await uploadAttachment(attachedFile, user.id);
+    }
+
     const message = inputValue.trim();
     setInputValue("");
     setAttachedImage(null);
+    setAttachedFile(null);
 
     // Determine session key
     let sessionKey = 'agent:main:main'; // Default to main agent
@@ -317,7 +329,7 @@ export default function HomePage({ agents = [], activeModel, onSendMessage }: Ho
                     className="max-h-20 rounded-xl border border-slate-700"
                   />
                   <button
-                    onClick={() => setAttachedImage(null)}
+                    onClick={() => { setAttachedImage(null); setAttachedFile(null); }}
                     className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 rounded-full text-white shadow-lg hover:bg-red-400 transition-colors"
                   >
                     <X className="w-3 h-3" />

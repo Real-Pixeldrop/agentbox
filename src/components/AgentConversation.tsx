@@ -19,6 +19,8 @@ import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import type { GatewayEvent } from '@/lib/gateway';
+import { useAuth } from '@/lib/AuthContext';
+import { uploadAttachment } from '@/lib/storage';
 import AgentSettingsPanel from './AgentSettingsPanel';
 import AgentAvatar from './AgentAvatar';
 
@@ -89,6 +91,7 @@ const DEMO_MESSAGES: ChatMessage[] = [
 export default function AgentConversation({ agent, sessionKey, onBack, onOpenSettings }: AgentConversationProps) {
   const { t } = useI18n();
   const { isConnected, send, onEvent } = useGateway();
+  const { user } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -96,6 +99,8 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
   const [streamingText, setStreamingText] = useState('');
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -292,6 +297,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
   // Image attachment handlers
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    setAttachedFile(file);
     const reader = new FileReader();
     reader.onload = () => {
       setAttachedImage(reader.result as string);
@@ -339,10 +345,20 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
     if (!inputValue.trim() && !attachedImage) return;
 
     const messageText = inputValue.trim();
-    const imageData = attachedImage;
-    const displayText = imageData && messageText
+    const imagePreview = attachedImage;
+    const fileToUpload = attachedFile;
+
+    // Upload image to Supabase Storage if present
+    let imageUrl: string | null = null;
+    if (fileToUpload && user?.id) {
+      setIsUploading(true);
+      imageUrl = await uploadAttachment(fileToUpload, user.id);
+      setIsUploading(false);
+    }
+
+    const displayText = imagePreview && messageText
       ? messageText
-      : imageData
+      : imagePreview
         ? `[${t.attachments.attachedImage}]`
         : messageText;
 
@@ -351,11 +367,12 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
       sender: 'user',
       text: displayText,
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      image: imageData || undefined,
+      image: imageUrl || imagePreview || undefined,
     };
     setMessages((prev) => [...prev, userMsg]);
     setInputValue('');
     setAttachedImage(null);
+    setAttachedFile(null);
     setIsTyping(true);
     setStreamingText('');
 
@@ -611,7 +628,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
                       className="max-h-20 rounded-lg border border-slate-700"
                     />
                     <button
-                      onClick={() => setAttachedImage(null)}
+                      onClick={() => { setAttachedImage(null); setAttachedFile(null); }}
                       className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 rounded-full text-white shadow-lg hover:bg-red-400 transition-colors"
                     >
                       <X className="w-3 h-3" />
@@ -654,10 +671,10 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
               />
               <button
                 onClick={handleSend}
-                disabled={!inputValue.trim() && !attachedImage}
+                disabled={(!inputValue.trim() && !attachedImage) || isUploading}
                 className={cn(
                   "p-2 rounded-lg transition-all",
-                  (inputValue.trim() || attachedImage)
+                  (inputValue.trim() || attachedImage) && !isUploading
                     ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20"
                     : "bg-slate-800 text-slate-600"
                 )}

@@ -52,7 +52,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Create default "main" agent
+    // Create default "main" agent with proper SOUL.md content
+    const soulContent = `# Assistant
+
+## Role
+Your main AI assistant that helps with various tasks, planning, and organization.
+
+## Communication Style
+Tone: Friendly and helpful
+Industry: General
+
+## Instructions
+- Be helpful, accurate, and informative
+- Assist with task management and organization
+- Provide clear and actionable recommendations
+- Always be professional yet approachable`;
+
     const defaultAgent: Omit<Agent, 'id' | 'created_at' | 'updated_at'> = {
       user_id: userId,
       name: 'Assistant',
@@ -62,9 +77,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       status: 'active',
       gateway_agent_id: 'main',
       gateway_session_key: 'agent:main:main',
-      config: {},
+      config: {
+        'SOUL.md': soulContent,
+        skills: []
+      },
       photo_url: null,
-      tone: null,
+      tone: 'friendly',
       industry: null,
       skills: []
     };

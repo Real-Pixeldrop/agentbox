@@ -113,6 +113,7 @@ const en = {
   teams: {
     title: "Teams",
     subtitle: "Organize and orchestrate your autonomous agent groups.",
+    search: "Search teams...",
     createTeam: "Create Team",
     noTeams: "No teams found",
     noTeamsDesc: "Create your first team to start grouping agents for specific mission objectives.",
@@ -306,6 +307,7 @@ const en = {
   activity: {
     title: "Activity",
     subtitle: "Monitor all agent activity in real-time.",
+    search: "Search activity...",
     filterAll: "All",
     filterEmail: "Email",
     filterTask: "Task",

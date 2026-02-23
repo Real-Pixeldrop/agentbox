@@ -23,6 +23,7 @@ import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import { useAuth } from '@/lib/AuthContext';
+import type { Team } from '@/lib/supabase';
 import ConnectionStatus from './ConnectionStatus';
 
 function cn(...inputs: ClassValue[]) {
@@ -36,6 +37,8 @@ interface EnrichedSidebarProps {
   onSelectAgent?: (id: string) => void;
   /** Real agents from gateway or page state */
   agents?: Array<{ id: number; name: string; photo: string; active: boolean }>;
+  /** Real teams from Supabase */
+  teams?: Team[];
   /** Mobile: whether sidebar is open */
   mobileOpen?: boolean;
   /** Mobile: callback to close sidebar */
@@ -144,6 +147,7 @@ export default function EnrichedSidebar({
   favoriteAgents = [],
   onSelectAgent,
   agents = [],
+  teams = [],
   mobileOpen = false,
   onMobileClose,
 }: EnrichedSidebarProps) {
@@ -170,9 +174,13 @@ export default function EnrichedSidebar({
   // Use real favorites from parent only - no demo data
   const favorites = favoriteAgents.length > 0 ? favoriteAgents : [];
 
-  const teams = [
-    { id: 'team1', name: 'Sales Team', color: 'bg-emerald-500', count: 3 },
-  ];
+  // Convert Supabase teams to display format
+  const displayTeams = teams.map(team => ({
+    id: team.id,
+    name: team.name,
+    color: 'bg-emerald-500', // Default color, could be enhanced later
+    count: 0, // TODO: Count agents in team when team-agent relations are implemented
+  }));
 
   // Show real agents as recent only when connected
   const recentAgents = isConnected
@@ -258,21 +266,25 @@ export default function EnrichedSidebar({
           </>
         )}
 
-        {/* Teams Section */}
-        <SectionHeader title={t.sidebar.teams} icon={UsersRound} actionIcon={Plus} />
-        <div className="space-y-0.5">
-          {teams.map((team) => (
-            <TeamLink 
-              key={team.id} 
-              name={team.name} 
-              color={team.color} 
-              count={team.count} 
-              onClick={() => handleNav('teams')}
-            />
-          ))}
-        </div>
+        {/* Teams Section - Only show if user has teams */}
+        {displayTeams.length > 0 && (
+          <>
+            <SectionHeader title={t.sidebar.teams} icon={UsersRound} actionIcon={Plus} />
+            <div className="space-y-0.5">
+              {displayTeams.map((team) => (
+                <TeamLink 
+                  key={team.id} 
+                  name={team.name} 
+                  color={team.color} 
+                  count={team.count} 
+                  onClick={() => handleNav('teams')}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
-        {/* Recent Agents */}
+        {/* Recent Agents - Only show if user has recent agents */}
         {recentAgents.length > 0 && (
           <>
             <SectionHeader title={t.sidebar.recent} />

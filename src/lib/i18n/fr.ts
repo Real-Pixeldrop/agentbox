@@ -115,6 +115,7 @@ const fr: Translations = {
   teams: {
     title: "Équipes",
     subtitle: "Organisez et orchestrez vos groupes d'agents autonomes.",
+    search: "Rechercher des équipes...",
     createTeam: "Créer une équipe",
     noTeams: "Aucune équipe trouvée",
     noTeamsDesc: "Créez votre première équipe pour regrouper des agents par objectifs de mission.",
@@ -308,6 +309,7 @@ const fr: Translations = {
   activity: {
     title: "Activité",
     subtitle: "Surveillez l'activité de tous les agents en temps réel.",
+    search: "Rechercher dans l'activité...",
     filterAll: "Tout",
     filterEmail: "Email",
     filterTask: "Tâche",

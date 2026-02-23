@@ -13,7 +13,8 @@ import {
   Check,
   Zap,
   Bot,
-  Trash2
+  Trash2,
+  Search
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -148,6 +149,7 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<TeamWithAgents[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Load teams data from Supabase
   useEffect(() => {
@@ -227,13 +229,31 @@ export default function TeamsPage() {
     setTeams(prev => prev.filter(team => team.id !== teamId));
   };
 
+  // Filter teams based on search query
+  const filteredTeams = teams.filter(team => 
+    team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (team.description && team.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
     <>
       {/* Top Bar */}
       <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-4 sm:px-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{t.teams.title}</h1>
-          <p className="text-slate-400 text-sm">{t.teams.subtitle}</p>
+        <div className="flex items-center gap-6">
+          <div>
+            <h1 className="text-2xl font-bold text-white">{t.teams.title}</h1>
+            <p className="text-slate-400 text-sm">{t.teams.subtitle}</p>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+            <input
+              type="text"
+              placeholder={t.teams.search || 'Rechercher des équipes...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-64 bg-slate-900/50 border border-slate-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all placeholder:text-slate-600"
+            />
+          </div>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -246,7 +266,7 @@ export default function TeamsPage() {
 
       {/* Content */}
       <div className="p-4 sm:p-8 max-w-6xl">
-        {teams.length === 0 ? (
+        {filteredTeams.length === 0 ? (
           <div className="mt-4 p-12 rounded-2xl border-2 border-dashed border-slate-800/50 flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mb-6 text-slate-500">
               <Users size={32} />
@@ -264,7 +284,7 @@ export default function TeamsPage() {
         ) : (
           <div className="grid gap-6">
             <AnimatePresence>
-              {teams.map((team) => {
+              {filteredTeams.map((team) => {
                 const IconComponent = Users; // Default icon for all teams
                 
                 return (

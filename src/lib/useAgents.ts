@@ -281,6 +281,38 @@ export function useAgents() {
     ));
   }, []);
 
+  // Update agent profile (name, description, photo, etc.)
+  const updateAgent = useCallback(async (agentId: string, updates: {
+    name?: string;
+    description?: string;
+    photo_url?: string | null;
+    tone?: string;
+    industry?: string;
+    status?: 'active' | 'inactive';
+  }): Promise<Agent> => {
+    // Build the update payload (only include defined fields)
+    const payload: Record<string, unknown> = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.photo_url !== undefined) payload.photo_url = updates.photo_url;
+    if (updates.tone !== undefined) payload.tone = updates.tone;
+    if (updates.industry !== undefined) payload.industry = updates.industry;
+    if (updates.status !== undefined) payload.status = updates.status;
+
+    const { data, error: updateErr } = await supabase
+      .from('agents')
+      .update(payload)
+      .eq('id', agentId)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    const updated = data as Agent;
+    setAgents(prev => prev.map(a => a.id === agentId ? updated : a));
+    return updated;
+  }, []);
+
   return {
     agents,
     loading,
@@ -289,5 +321,6 @@ export function useAgents() {
     createAgent,
     deleteAgent,
     updateAgentStatus,
+    updateAgent,
   };
 }

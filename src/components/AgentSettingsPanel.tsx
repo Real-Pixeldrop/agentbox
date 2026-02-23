@@ -32,6 +32,7 @@ import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import { useAgentFiles } from '@/lib/useAgentFiles';
+import { supabase } from '@/lib/supabase';
 import ChannelConfig from './ChannelConfig';
 import AgentAvatar from './AgentAvatar';
 
@@ -91,6 +92,8 @@ interface AgentSettingsPanelProps {
   onNavigateToScheduledActions?: () => void;
   /** Supabase agent UUID — enables reading/writing skills from Supabase */
   supabaseAgentId?: string;
+  /** Called after a successful profile save so parent can refresh agent data */
+  onAgentUpdated?: () => void;
 }
 
 interface MemoryFile {
@@ -121,7 +124,7 @@ type SettingsTab = 'general' | 'tools' | 'memory' | 'skills' | 'crons' | 'channe
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, onNavigateToScheduledActions, supabaseAgentId }: AgentSettingsPanelProps) {
+export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, onNavigateToScheduledActions, supabaseAgentId, onAgentUpdated }: AgentSettingsPanelProps) {
   const { t } = useI18n();
   const { isConnected, send } = useGateway();
   const agentFiles = useAgentFiles(supabaseAgentId, sessionKey);
@@ -163,6 +166,9 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
   // Photo upload
   const [agentPhoto, setAgentPhoto] = useState(agent.photo);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
+
+  // General tab saving
+  const [generalSaving, setGeneralSaving] = useState(false);
 
   // Skills tab
   const [skills, setSkills] = useState<SkillItem[]>([]);
@@ -505,6 +511,43 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
     reader.readAsDataURL(file);
   }, []);
 
+  // ─── Save general settings (name, role, photo) to Supabase ──────────
+
+  const saveGeneral = useCallback(async () => {
+    if (!supabaseAgentId) {
+      setError(t.settingsPanel.saveFailed);
+      return;
+    }
+    setGeneralSaving(true);
+    setError(null);
+    try {
+      const updates: Record<string, unknown> = {
+        name: agentName,
+        description: agentRole,
+      };
+
+      // Handle photo: if it's a base64 data URL (new upload), store it
+      // Supabase photo_url column can hold a URL or base64 string
+      if (agentPhoto !== agent.photo) {
+        updates.photo_url = agentPhoto || null;
+      }
+
+      const { error: updateErr } = await supabase
+        .from('agents')
+        .update(updates)
+        .eq('id', supabaseAgentId);
+
+      if (updateErr) throw updateErr;
+
+      setSuccess(t.settingsPanel.saveSuccess);
+      onAgentUpdated?.();
+    } catch {
+      setError(t.settingsPanel.saveFailed);
+    } finally {
+      setGeneralSaving(false);
+    }
+  }, [supabaseAgentId, agentName, agentRole, agentPhoto, agent.photo, onAgentUpdated, t]);
+
   // ─── Memory note ────────────────────────────────────────────────────
 
   const saveMemoryNote = useCallback(async () => {
@@ -669,6 +712,32 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
           {agent.active ? t.agents.active : t.agents.inactive}
         </div>
       </div>
+
+      {/* Save general settings button */}
+      {supabaseAgentId && (
+        <button
+          onClick={saveGeneral}
+          disabled={generalSaving}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all",
+            generalSaving
+              ? "bg-blue-600/50 text-blue-200 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
+          )}
+        >
+          {generalSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {t.settingsPanel.saving}
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              {t.settingsPanel.save}
+            </>
+          )}
+        </button>
+      )}
 
       {/* SOUL.md Editor */}
       {agentFiles.available && (

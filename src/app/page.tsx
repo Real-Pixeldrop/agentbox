@@ -168,7 +168,7 @@ export default function AgentBoxDashboard() {
   const [settingsPanelAgent, setSettingsPanelAgent] = useState<AgentData | null>(null);
   const { t } = useI18n();
   const { isConnected } = useGateway();
-  const { agents: supabaseAgents, loading: agentsLoading, createAgent, deleteAgent, updateAgentStatus, fetchAgents } = useAgents();
+  const { agents: supabaseAgents, loading: agentsLoading, createAgent, deleteAgent, updateAgentStatus, updateAgent, fetchAgents } = useAgents();
   const { teams: supabaseTeams, loading: teamsLoading } = useTeams();
   const { notifications: realNotifications, unreadCount: realUnreadCount, addNotification, markAsRead, markAllAsRead } = useNotifications();
 
@@ -430,6 +430,7 @@ export default function AgentBoxDashboard() {
             setCurrentPage('agents');
           }}
           supabaseAgentId={selectedAgent.supabaseId}
+          onAgentUpdated={fetchAgents}
         />
       );
     }

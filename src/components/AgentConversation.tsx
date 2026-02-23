@@ -70,6 +70,8 @@ interface AgentConversationProps {
   onOpenSettings?: () => void;
   /** Supabase agent UUID — for file sync between chat and settings */
   supabaseAgentId?: string;
+  /** Called after agent profile is updated (name, photo, etc.) */
+  onAgentUpdated?: () => void;
 }
 
 interface ChatMessage {
@@ -91,7 +93,7 @@ const DEMO_MESSAGES: ChatMessage[] = [
   { id: 'm7', sender: 'agent', text: "On it. I'll research the company, check LinkedIn profiles, and prepare a qualification summary. ETA: 15 minutes.", time: '09:15' },
 ];
 
-export default function AgentConversation({ agent, sessionKey, onBack, onOpenSettings, supabaseAgentId }: AgentConversationProps) {
+export default function AgentConversation({ agent, sessionKey, onBack, onOpenSettings, supabaseAgentId, onAgentUpdated }: AgentConversationProps) {
   const { t } = useI18n();
   const { isConnected, send, onEvent } = useGateway();
   const { user } = useAuth();
@@ -498,6 +500,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
         agent={agent}
         sessionKey={sessionKey}
         supabaseAgentId={supabaseAgentId}
+        onAgentUpdated={onAgentUpdated}
       />
 
       {/* Chat Content */}

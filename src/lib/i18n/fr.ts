@@ -484,11 +484,21 @@ const fr: Translations = {
   settingsPanel: {
     title: "Paramètres de l'agent",
     tabGeneral: "Général",
-    tabTools: "TOOLS.md",
+    tabTools: "Outils",
     tabMemory: "Mémoire",
     tabSkills: "Compétences",
     tabCrons: "Actions planifiées",
     tabChannels: "Canaux",
+    // Tab hints
+    hints: {
+      general: "Configuration de base de votre agent. Définissez son identité, son rôle et ses horaires de fonctionnement.",
+      tools: "Les outils de votre agent se créent naturellement. Discutez avec lui et il notera ses propres outils et procédures au fil du temps. Vous pouvez aussi les éditer manuellement ici.",
+      memory: "La mémoire de votre agent se construit au fil des conversations. Il retient les informations importantes et les organise par jour. Vous pouvez aussi ajouter des notes manuellement pour le briefer.",
+      skills: "Les compétences sont des capacités spéciales que vous attribuez à votre agent. Créez-en de nouvelles ou modifiez celles existantes pour personnaliser son comportement.",
+      crons: "Planifiez des actions récurrentes pour votre agent : rappels, vérifications automatiques, rapports périodiques. Il les exécutera de façon autonome.",
+      channels: "Connectez votre agent à différents canaux de communication : email, WhatsApp, Slack, etc. Il pourra interagir sur chaque plateforme configurée.",
+      dismiss: "Fermer",
+    },
     agentName: "Nom de l'agent",
     agentRole: "Rôle et Description",
     schedule: "Horaires",

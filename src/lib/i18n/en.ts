@@ -482,11 +482,21 @@ const en = {
   settingsPanel: {
     title: "Agent Settings",
     tabGeneral: "General",
-    tabTools: "TOOLS.md",
+    tabTools: "Tools",
     tabMemory: "Memory",
     tabSkills: "Skills",
     tabCrons: "Scheduled Actions",
     tabChannels: "Channels",
+    // Tab hints
+    hints: {
+      general: "Basic agent configuration. Define its identity, role and operating hours.",
+      tools: "Your agent's tools are created naturally. Chat with it and it will note its own tools and procedures over time. You can also edit them manually here.",
+      memory: "Your agent's memory builds up through conversations. It remembers important information and organizes it by day. You can also add notes manually to brief it.",
+      skills: "Skills are special capabilities you assign to your agent. Create new ones or modify existing ones to customize its behavior.",
+      crons: "Schedule recurring actions for your agent: reminders, automatic checks, periodic reports. It will execute them autonomously.",
+      channels: "Connect your agent to different communication channels: email, WhatsApp, Slack, etc. It can interact on each configured platform.",
+      dismiss: "Dismiss",
+    },
     agentName: "Agent Name",
     agentRole: "Role & Description",
     schedule: "Schedule",

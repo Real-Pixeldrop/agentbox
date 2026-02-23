@@ -25,6 +25,7 @@ import {
   CalendarClock,
   RefreshCw,
   ExternalLink,
+  Info,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -35,6 +36,38 @@ import AgentAvatar from './AgentAvatar';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+// ─── Tab Hint Banner ─────────────────────────────────────────────────────────
+
+function TabHintBanner({ tabId, text, dismissLabel }: { tabId: string; text: string; dismissLabel: string }) {
+  const storageKey = `agentbox-hint-dismissed-${tabId}`;
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem(storageKey) !== '1';
+  });
+
+  if (!visible) return null;
+
+  const dismiss = () => {
+    setVisible(false);
+    localStorage.setItem(storageKey, '1');
+  };
+
+  return (
+    <div className="mb-4 flex items-start gap-3 rounded-lg border-l-2 border-blue-500/40 bg-blue-500/5 px-4 py-3">
+      <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-400/70" />
+      <p className="flex-1 text-xs leading-relaxed text-slate-400">{text}</p>
+      <button
+        onClick={dismiss}
+        className="flex-shrink-0 p-0.5 text-slate-600 hover:text-slate-400 transition-colors"
+        aria-label={dismissLabel}
+        title={dismissLabel}
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -526,6 +559,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
 
   const renderGeneral = () => (
     <div className="space-y-6">
+      <TabHintBanner tabId="general" text={t.settingsPanel.hints.general} dismissLabel={t.settingsPanel.hints.dismiss} />
       {/* Agent photo + name */}
       <div className="flex items-center gap-4">
         <div className="relative group/avatar">
@@ -616,6 +650,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
 
   const renderTools = () => (
     <div className="space-y-4">
+      <TabHintBanner tabId="tools" text={t.settingsPanel.hints.tools} dismissLabel={t.settingsPanel.hints.dismiss} />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-blue-400" />
@@ -664,6 +699,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
 
   const renderMemory = () => (
     <div className="space-y-4">
+      <TabHintBanner tabId="memory" text={t.settingsPanel.hints.memory} dismissLabel={t.settingsPanel.hints.dismiss} />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Brain className="w-4 h-4 text-purple-400" />
@@ -834,6 +870,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
 
   const renderSkills = () => (
     <div className="space-y-4">
+      <TabHintBanner tabId="skills" text={t.settingsPanel.hints.skills} dismissLabel={t.settingsPanel.hints.dismiss} />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-amber-400" />
@@ -979,6 +1016,7 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
 
   const renderCrons = () => (
     <div className="space-y-4">
+      <TabHintBanner tabId="crons" text={t.settingsPanel.hints.crons} dismissLabel={t.settingsPanel.hints.dismiss} />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-cyan-400" />
@@ -1167,7 +1205,12 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
       case 'memory': return renderMemory();
       case 'skills': return renderSkills();
       case 'crons': return renderCrons();
-      case 'channels': return <ChannelConfig agentChannels={agent.channels} />;
+      case 'channels': return (
+        <div className="space-y-4">
+          <TabHintBanner tabId="channels" text={t.settingsPanel.hints.channels} dismissLabel={t.settingsPanel.hints.dismiss} />
+          <ChannelConfig agentChannels={agent.channels} />
+        </div>
+      );
       default: return null;
     }
   };

@@ -63,7 +63,7 @@ function cn(...inputs: ClassValue[]) {
 // Tab type
 // ============================================================
 
-type SettingsTab = 'profile' | 'account' | 'notifications' | 'workspace';
+type SettingsTab = 'profile' | 'account' | 'notifications';
 
 // ============================================================
 // Shared components
@@ -1256,7 +1256,6 @@ export default function SettingsPage() {
     { key: 'profile', label: t.settings.tabProfile, icon: User },
     { key: 'account', label: t.settings.tabAccount, icon: CreditCard },
     { key: 'notifications', label: t.settings.tabNotifications, icon: Bell },
-    { key: 'workspace', label: t.settings.tabWorkspace, icon: FolderOpen },
   ];
 
   return (
@@ -1304,7 +1303,6 @@ export default function SettingsPage() {
         {activeTab === 'profile' && <ProfileTab />}
         {activeTab === 'account' && <AccountTab />}
         {activeTab === 'notifications' && <NotificationsTab />}
-        {activeTab === 'workspace' && <WorkspaceTab />}
       </div>
     </div>
   );

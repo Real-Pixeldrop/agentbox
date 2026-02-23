@@ -1307,6 +1307,9 @@ export default function SettingsPage() {
         {/* Legal links */}
         <div className="mt-12 pt-6 border-t border-slate-800/30 flex items-center gap-4 text-xs text-slate-600">
           <span>Legal</span>
+          <a href="/legal/mentions" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400 transition-colors">
+            Legal Notice
+          </a>
           <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400 transition-colors">
             Terms of Service
           </a>

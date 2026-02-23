@@ -477,6 +477,15 @@ export default function AuthPage() {
             <a href="/legal/dpa" target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-300 transition-colors">
               DPA
             </a>
+            {' · '}
+            <a href="/legal/mentions" target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-300 transition-colors">
+              {lang === 'FR' ? 'Mentions légales' : 'Legal Notice'}
+            </a>
+          </p>
+          <p className="text-center text-[10px] text-slate-600 mt-3">
+            <a href="https://www.pixel-drop.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400 transition-colors">
+              {lang === 'FR' ? 'Un projet Pixel Drop' : 'A Pixel Drop project'}
+            </a>
           </p>
         </div>
       </div>

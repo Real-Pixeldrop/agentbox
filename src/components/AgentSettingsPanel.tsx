@@ -33,6 +33,7 @@ import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import { useAgentFiles } from '@/lib/useAgentFiles';
 import { supabase } from '@/lib/supabase';
+import { vpsListFiles, vpsReadFile, vpsWriteFile } from '@/lib/agent-files-api';
 import ChannelConfig from './ChannelConfig';
 import AgentAvatar from './AgentAvatar';
 
@@ -234,14 +235,43 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
     if (!agentFiles.available) return;
     setSoulLoading(true);
     try {
-      const content = await agentFiles.readFile('SOUL.md');
+      let content = await agentFiles.readFile('SOUL.md');
+
+      // Fallback 1: try slug workspace (agent may have written SOUL.md there)
+      if (!content && agent.gatewayAgentId && agent.gatewayAgentId !== supabaseAgentId) {
+        try {
+          content = await vpsReadFile(agent.gatewayAgentId, 'SOUL.md');
+          if (content && supabaseAgentId) {
+            // Sync to UUID workspace
+            agentFiles.writeFile('SOUL.md', content).catch(() => {});
+          }
+        } catch { /* non-critical */ }
+      }
+
+      // Fallback 2: read from Supabase config (set during agent creation)
+      if (!content && supabaseAgentId) {
+        try {
+          const { data } = await supabase
+            .from('agents')
+            .select('config')
+            .eq('id', supabaseAgentId)
+            .single();
+          const configSoul = (data?.config as Record<string, unknown>)?.['SOUL.md'] as string | undefined;
+          if (configSoul) {
+            content = configSoul;
+            // Write to VPS so next load is fast
+            agentFiles.writeFile('SOUL.md', configSoul).catch(() => {});
+          }
+        } catch { /* non-critical */ }
+      }
+
       setSoulContent(content ?? '');
     } catch {
       setSoulContent('');
     } finally {
       setSoulLoading(false);
     }
-  }, [agentFiles]);
+  }, [agentFiles, supabaseAgentId, agent.gatewayAgentId]);
 
   const saveSoulContent = useCallback(async () => {
     if (!agentFiles.available) return;
@@ -338,17 +368,37 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
   const loadSkills = useCallback(async () => {
     setSkillsLoading(true);
     try {
-      // List skill files via the unified agentFiles hook (gateway first, Supabase fallback)
-      const files = await agentFiles.listFiles(['skills/']);
+      // List skill files via the unified agentFiles hook (primary: Supabase UUID)
+      let files = await agentFiles.listFiles(['skills/']);
+
+      // Fallback: if no skills found under Supabase UUID, try with gateway slug ID
+      // (skills created by agent in conversation are stored under the slug workspace)
+      if (files.length === 0 && agent.gatewayAgentId && agent.gatewayAgentId !== supabaseAgentId) {
+        try {
+          const slugFiles = await vpsListFiles(agent.gatewayAgentId, 'skills/');
+          if (slugFiles.length > 0) {
+            files = slugFiles.map(f => ({
+              name: f.path.split('/').pop() || f.path,
+              path: f.path,
+            }));
+            // Sync: copy skills from slug workspace to UUID workspace for future reads
+            for (const f of slugFiles) {
+              if (supabaseAgentId) {
+                try {
+                  const content = await vpsReadFile(agent.gatewayAgentId, f.path);
+                  if (content) await vpsWriteFile(supabaseAgentId, f.path, content);
+                } catch { /* non-critical sync */ }
+              }
+            }
+          }
+        } catch { /* slug fallback failed, not critical */ }
+      }
 
       if (files.length > 0) {
-        // Each file is a skill — parse into SkillItem from the SKILL.md files
         const loadedSkills: SkillItem[] = [];
         for (const file of files) {
-          // Only process SKILL.md files
           if (!file.path.endsWith('/SKILL.md') && !file.path.endsWith('.md')) continue;
 
-          // Extract skill id from path: "skills/email/SKILL.md" → "email"
           const parts = file.path.split('/');
           const skillId = parts.length >= 2 ? parts[parts.length - 2] : file.name.replace('.md', '');
 
@@ -364,7 +414,6 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
               origin: 'created',
             });
           } catch {
-            // Skip unreadable skill files
             loadedSkills.push({
               id: skillId,
               name: skillId,
@@ -376,14 +425,39 @@ export default function AgentSettingsPanel({ open, onClose, agent, sessionKey, o
         }
         setSkills(loadedSkills);
       } else {
-        setSkills([]);
+        // Last fallback: check Supabase config for skills list
+        if (supabaseAgentId) {
+          try {
+            const { data } = await supabase
+              .from('agents')
+              .select('skills, config')
+              .eq('id', supabaseAgentId)
+              .single();
+            const skillsList = data?.skills as string[] || [];
+            if (skillsList.length > 0) {
+              setSkills(skillsList.map(s => ({
+                id: s,
+                name: s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' '),
+                description: `Skill: ${s}`,
+                enabled: true,
+                origin: 'stock' as const,
+              })));
+            } else {
+              setSkills([]);
+            }
+          } catch {
+            setSkills([]);
+          }
+        } else {
+          setSkills([]);
+        }
       }
     } catch {
       setSkills([]);
     } finally {
       setSkillsLoading(false);
     }
-  }, [agentFiles]);
+  }, [agentFiles, agent.gatewayAgentId, supabaseAgentId]);
 
   const saveSkill = useCallback(async () => {
     if (!agentFiles.available) return;

@@ -12,13 +12,15 @@ import {
   Globe,
   Plus,
   Box,
-  MoreVertical
+  MoreVertical,
+  LogOut
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
+import { useAuth } from '@/lib/AuthContext';
 import ConnectionStatus from './ConnectionStatus';
 
 function cn(...inputs: ClassValue[]) {
@@ -133,6 +135,7 @@ export default function EnrichedSidebar({
 }: EnrichedSidebarProps) {
   const { t, language, toggleLanguage } = useI18n();
   const { isConnected } = useGateway();
+  const { signOut } = useAuth();
   
   const mainNavItems = [
     { id: 'home', label: t.nav.home, icon: House },
@@ -251,8 +254,17 @@ export default function EnrichedSidebar({
       {/* Bottom Area */}
       <div className="mt-auto border-t border-slate-800/50 p-4 space-y-4">
         
-        {/* Gateway Connection Status — PROMINENT */}
-        <div className="flex justify-start">
+        {/* Sign Out Button */}
+        <button
+          onClick={signOut}
+          className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-500/5 rounded-md transition-all duration-200 group"
+        >
+          <LogOut className="h-4 w-4 group-hover:text-red-400 transition-colors" />
+          <span>{t.auth.signOut}</span>
+        </button>
+        
+        {/* Gateway Connection Status — HIDDEN FROM USERS */}
+        <div className="flex justify-start" style={{ display: 'none' }}>
           <ConnectionStatus />
         </div>
 

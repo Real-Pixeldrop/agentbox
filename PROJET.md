@@ -77,3 +77,34 @@ JAMAIS mentionner "OpenClaw" dans l'interface utilisateur. Les noms de fichiers 
 - 22/02/2026 : Création projet, premier proto fonctionnel (dashboard + wizard + design premium)
 - 23/02/2026 : v3 complète (home, i18n, teams, activity, settings, conversation, notifications, channels post-création)
 - 23/02/2026 : Analyse concurrentielle Lindy, positionnement fiabilité/transparence
+
+## Landing Page - Notes (23/02/2026)
+
+### Pitch central
+"90% des gens ne peuvent pas utiliser les outils IA agents (OpenClaw, etc.). AgentBox supprime cette barrière."
+
+### Bénéfices à mettre en avant
+- Zero technique : pas de terminal, pas de code, pas d'install
+- Multi-canal : WhatsApp, Email, Slack, Telegram, Discord en quelques clics
+- Contrôle total : dashboard temps réel, conversations, coûts
+- Votre infra : déployé sur votre propre serveur, vos données restent chez vous
+- Équipes d'agents : créez une vraie équipe IA (support, ventes, ops)
+
+### Arguments concurrentiels (vs podcast OpenClaw)
+- OpenClaw = puissant mais 10% de la population peut l'utiliser
+- AgentBox = la même puissance, accessible à tous
+- Pas de fichiers markdown à écrire, pas de CLI
+- Interface visuelle, wizard de création d'agent
+
+### Références concurrentes
+- Lindy.ai : 49.99$/mois tout compris, pas de crédits
+- Relevance AI, AgentOps, CrewAI
+
+### Structure landing page (à affiner)
+1. Hero : headline + sous-titre + CTA "Commencer gratuitement"
+2. Social proof : logos/chiffres
+3. Bénéfices (3-4 blocs visuels)
+4. Comment ça marche (3 étapes)
+5. Pricing (Free / Pro / Enterprise)
+6. FAQ
+7. CTA final

@@ -96,6 +96,7 @@ export default function HomePage() {
         <motion.h1 
           variants={itemVariants}
           className="text-5xl md:text-6xl font-semibold tracking-tight text-center mb-10"
+          style={{ whiteSpace: 'nowrap' }}
         >
           <span className="bg-gradient-to-b from-white via-white to-slate-500 bg-clip-text text-transparent">
             {t.home.title}

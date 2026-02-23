@@ -21,6 +21,8 @@ import { AnimatePresence } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import { useAuth } from '@/lib/AuthContext';
+import { useAgents } from '@/lib/useAgents';
+import type { Agent as SupabaseAgent } from '@/lib/supabase';
 import AuthPage from '@/components/AuthPage';
 import EnrichedSidebar from '@/components/EnrichedSidebar';
 import HomePage from '@/components/HomePage';
@@ -92,11 +94,13 @@ interface AgentData {
   tokensToday: number;
   costToday: number;
   tokenLimit: number;
-  /** Session key for gateway chat. Format: "agent:{agentId}:main" */
+  /** Session key for gateway chat */
   sessionKey?: string;
+  /** Supabase agent ID (uuid) */
+  supabaseId?: string;
 }
 
-// Demo agents shown when gateway is not connected
+// Demo agents shown when gateway is not connected AND no Supabase agents
 const DEMO_AGENTS: AgentData[] = [
   {
     id: 1,
@@ -132,12 +136,33 @@ const DEMO_AGENTS: AgentData[] = [
   },
 ];
 
+/** Convert Supabase Agent to display AgentData */
+function supabaseToAgentData(agent: SupabaseAgent, index: number, t: Record<string, string>): AgentData {
+  return {
+    id: index + 1000, // offset to avoid collision with demo agents
+    name: agent.name,
+    role: agent.description || agent.industry || 'AI Agent',
+    status: agent.status === 'active' ? 'Active' : 'Inactive',
+    channels: [],
+    active: agent.status === 'active',
+    lastActive: agent.status === 'active' ? (t.activeNow || 'Active now') : (t.neverStarted || 'Never started'),
+    photo: agent.photo_url || '',
+    schedule: 'Not configured',
+    favorite: false,
+    tokensToday: 0,
+    costToday: 0,
+    tokenLimit: 5000,
+    sessionKey: agent.gateway_session_key || `agent:${agent.gateway_agent_id || agent.name.toLowerCase().replace(/\s+/g, '-')}:main`,
+    supabaseId: agent.id,
+  };
+}
+
 // --- Main ---
 
 export default function AgentBoxDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
-  const [agents, setAgents] = useState<AgentData[]>([]);
+  const [displayAgents, setDisplayAgents] = useState<AgentData[]>([]);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [showAgentDetail, setShowAgentDetail] = useState(false);
@@ -149,25 +174,29 @@ export default function AgentBoxDashboard() {
     message: '',
   });
   const [currentSessionKey, setCurrentSessionKey] = useState<string>('agent:main:main');
-  const [agentsLoaded, setAgentsLoaded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { t } = useI18n();
-  const { isConnected, send } = useGateway();
+  const { isConnected } = useGateway();
+  const { agents: supabaseAgents, loading: agentsLoading, createAgent, deleteAgent, updateAgentStatus, fetchAgents } = useAgents();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Load agents from gateway only - no mock data
+  // Convert Supabase agents to display format, or show demo agents if none
   useEffect(() => {
-    if (isConnected) {
-      loadRealAgents();
+    if (agentsLoading) return;
+
+    if (supabaseAgents.length > 0) {
+      // Real agents from Supabase
+      const converted = supabaseAgents.map((a, i) => supabaseToAgentData(a, i, t.agents as unknown as Record<string, string>));
+      setDisplayAgents(converted);
+    } else if (!user) {
+      // Not logged in: show demo
+      setDisplayAgents(DEMO_AGENTS);
     } else {
-      // When disconnected: show demo agents
-      setAgents(DEMO_AGENTS);
-      setNotifications([]);
-      setAgentsLoaded(true);
+      // Logged in but no agents: empty list
+      setDisplayAgents([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected]);
+  }, [supabaseAgents, agentsLoading, user, t]);
 
   // Close agent menu when clicking outside
   useEffect(() => {
@@ -181,87 +210,49 @@ export default function AgentBoxDashboard() {
     }
   }, [agentMenuId]);
 
-  const loadRealAgents = useCallback(async () => {
-    try {
-      // Get agent list from gateway config
-      const config = await send<Record<string, unknown>>('config.get', {});
-      const agentsList = (config?.agents as Record<string, unknown>)?.list as Array<Record<string, unknown>> || [];
+  const toggleAgent = async (id: number) => {
+    const agent = displayAgents.find(a => a.id === id);
+    if (!agent) return;
 
-      // Also fetch active sessions to determine agent status
-      let activeSessions: string[] = [];
+    if (agent.supabaseId) {
+      // Real agent: update in Supabase
+      const newStatus = agent.active ? 'inactive' : 'active';
       try {
-        const sessionsResult = await send<{ sessions?: Array<{ key: string; active?: boolean }> }>('sessions.list', {});
-        activeSessions = (sessionsResult?.sessions || [])
-          .filter(s => s.active)
-          .map(s => s.key);
+        await updateAgentStatus(agent.supabaseId, newStatus as 'active' | 'inactive');
       } catch {
-        // sessions.list might not exist, that's ok
+        setToast({ visible: true, message: 'Failed to update agent status' });
       }
-
-      const realAgents: AgentData[] = agentsList.map((agentConfig, index) => {
-        const agentName = (agentConfig.name as string) || `Agent ${index + 1}`;
-        const agentId = agentConfig.id as string || agentName.toLowerCase().replace(/\s+/g, '-');
-        const sessionKey = `agent:${agentId}:main`;
-        const isActive = activeSessions.includes(sessionKey) || (agentConfig.enabled !== false);
-
-        return {
-          id: index + 1,
-          name: agentName,
-          role: (agentConfig.description as string) || (agentConfig['SOUL.md'] as string || '').split('\n').find(l => l && !l.startsWith('#'))?.trim() || 'AI Agent',
-          status: isActive ? 'Active' : 'Inactive',
-          channels: (agentConfig.channels as string[]) || [],
-          active: isActive,
-          lastActive: isActive ? t.agents.activeNow : t.agents.neverStarted,
-          photo: (agentConfig.photo as string) || `https://randomuser.me/api/portraits/${index % 2 === 0 ? 'men' : 'women'}/${30 + index}.jpg`,
-          schedule: (agentConfig.schedule as string) || 'Not configured',
-          favorite: false,
-          tokensToday: 0,
-          costToday: 0,
-          tokenLimit: 5000,
-          sessionKey,
-        };
-      });
-
-      setAgents(realAgents);
-      // Clear mock notifications when connected
-      setNotifications([]);
-    } catch {
-      // If we can't load from gateway, start with empty list
-      setAgents([]);
+    } else {
+      // Demo agent: toggle locally
+      setDisplayAgents((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? { ...a, active: !a.active, status: !a.active ? 'Active' : 'Inactive' }
+            : a
+        )
+      );
     }
-    setAgentsLoaded(true);
-  }, [send, t]);
-
-  const toggleAgent = (id: number) => {
-    setAgents((prev) =>
-      prev.map((agent) =>
-        agent.id === id
-          ? { ...agent, active: !agent.active, status: !agent.active ? 'Active' : 'Inactive' }
-          : agent
-      )
-    );
   };
 
   const toggleFavorite = (id: number) => {
-    setAgents((prev) =>
+    setDisplayAgents((prev) =>
       prev.map((agent) =>
         agent.id === id ? { ...agent, favorite: !agent.favorite } : agent
       )
     );
   };
 
-  const favoriteAgents = agents
+  const favoriteAgents = displayAgents
     .filter((a) => a.favorite)
     .map((a) => ({ id: String(a.id), name: a.name, photo: a.photo, active: a.active }));
 
-  const selectedAgent = selectedAgentId !== null ? agents.find((a) => a.id === selectedAgentId) : null;
+  const selectedAgent = selectedAgentId !== null ? displayAgents.find((a) => a.id === selectedAgentId) : null;
 
   const handleSelectAgent = (id: string) => {
     const numId = parseInt(id);
-    const agent = agents.find(a => a.id === numId);
+    const agent = displayAgents.find(a => a.id === numId);
     setSelectedAgentId(numId);
     setShowAgentDetail(false);
-    // Set the session key for this agent
     if (agent?.sessionKey) {
       setCurrentSessionKey(agent.sessionKey);
     } else {
@@ -276,6 +267,55 @@ export default function AgentBoxDashboard() {
     setCurrentPage(page);
   };
 
+  const handleAgentCreated = useCallback(
+    (supabaseAgent: SupabaseAgent) => {
+      // Agent was saved to Supabase (and potentially gateway) via useAgents.createAgent
+      // Refresh the agent list
+      fetchAgents();
+
+      setShowWizard(false);
+
+      // Show toast
+      setToast({
+        visible: true,
+        message: t.toast.agentCreated,
+        description: `${supabaseAgent.name} ${t.toast.agentLaunched}`,
+      });
+
+      // Add notification
+      const newNotif: Notification = {
+        id: `n${Date.now()}`,
+        type: 'task',
+        agentName: supabaseAgent.name,
+        agentPhoto: supabaseAgent.photo_url || '',
+        message: 'has been created and is now active.',
+        time: 'just now',
+        read: false,
+      };
+      setNotifications((prev) => [newNotif, ...prev]);
+
+      // Navigate to the agent's conversation
+      const sessionKey = supabaseAgent.gateway_session_key || `agent:${supabaseAgent.gateway_agent_id || supabaseAgent.name.toLowerCase().replace(/\s+/g, '-')}:main`;
+      setTimeout(() => {
+        // Find the agent in the display list after refresh
+        setCurrentSessionKey(sessionKey);
+        setCurrentPage('agent-conversation');
+        // Use a temporary ID that will match after fetchAgents completes
+        const tempAgent = supabaseToAgentData(supabaseAgent, 0, t.agents as unknown as Record<string, string>);
+        setDisplayAgents(prev => {
+          // Ensure the agent is in the list
+          if (!prev.find(a => a.supabaseId === supabaseAgent.id)) {
+            return [tempAgent, ...prev];
+          }
+          return prev;
+        });
+        setSelectedAgentId(tempAgent.id);
+      }, 300);
+    },
+    [t, fetchAgents]
+  );
+
+  // Legacy handler for demo mode
   const handleLaunchAgent = useCallback(
     (agentData: {
       name: string;
@@ -285,8 +325,8 @@ export default function AgentBoxDashboard() {
       photo: string | null;
       skills: string[];
     }) => {
-      const agentId = agentData.name.toLowerCase().replace(/\s+/g, '-') || `agent-${Date.now()}`;
-      const sessionKey = `agent:${agentId}:main`;
+      // Only used in demo mode (no Supabase)
+      const sessionKey = `agent:${agentData.name.toLowerCase().replace(/\s+/g, '-') || `agent-${Date.now()}`}:main`;
 
       const newAgent: AgentData = {
         id: Date.now(),
@@ -296,7 +336,7 @@ export default function AgentBoxDashboard() {
         channels: [],
         active: true,
         lastActive: t.agents.activeNow,
-        photo: agentData.photo || `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 90)}.jpg`,
+        photo: agentData.photo || '',
         schedule: 'Not configured',
         favorite: false,
         tokensToday: 0,
@@ -305,29 +345,15 @@ export default function AgentBoxDashboard() {
         sessionKey,
       };
 
-      setAgents((prev) => [newAgent, ...prev]);
+      setDisplayAgents((prev) => [newAgent, ...prev]);
       setShowWizard(false);
 
-      // Show toast
       setToast({
         visible: true,
         message: t.toast.agentCreated,
         description: `${agentData.name} ${t.toast.agentLaunched}`,
       });
 
-      // Add notification
-      const newNotif: Notification = {
-        id: `n${Date.now()}`,
-        type: 'task',
-        agentName: agentData.name,
-        agentPhoto: newAgent.photo,
-        message: 'has been created and is now active.',
-        time: 'just now',
-        read: false,
-      };
-      setNotifications((prev) => [newNotif, ...prev]);
-
-      // Navigate to the agent's conversation with its session key
       setTimeout(() => {
         setSelectedAgentId(newAgent.id);
         setCurrentSessionKey(sessionKey);
@@ -337,6 +363,23 @@ export default function AgentBoxDashboard() {
     },
     [t]
   );
+
+  const handleDeleteAgent = async (id: number) => {
+    const agent = displayAgents.find(a => a.id === id);
+    if (!agent) return;
+
+    if (agent.supabaseId) {
+      try {
+        await deleteAgent(agent.supabaseId);
+        setToast({ visible: true, message: 'Agent deleted successfully' });
+      } catch {
+        setToast({ visible: true, message: 'Failed to delete agent' });
+      }
+    } else {
+      // Demo agent: remove locally
+      setDisplayAgents(prev => prev.filter(a => a.id !== id));
+    }
+  };
 
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -389,13 +432,11 @@ export default function AgentBoxDashboard() {
       case 'home':
         return (
           <HomePage 
-            agents={agents.map(a => ({ id: a.id, name: a.name, photo: a.photo, active: a.active, sessionKey: a.sessionKey }))} 
+            agents={displayAgents.map(a => ({ id: a.id, name: a.name, photo: a.photo, active: a.active, sessionKey: a.sessionKey }))} 
             onSendMessage={(message, agentId) => {
-              // If a specific agent is selected, open their conversation
-              // If auto (null), pick the first active agent or default
-              const targetId = agentId ?? agents.find(a => a.active)?.id ?? agents[0]?.id;
+              const targetId = agentId ?? displayAgents.find(a => a.active)?.id ?? displayAgents[0]?.id;
               if (targetId) {
-                const agent = agents.find(a => a.id === targetId);
+                const agent = displayAgents.find(a => a.id === targetId);
                 if (agent) {
                   setSelectedAgentId(agent.id);
                   if (agent.sessionKey) {
@@ -404,7 +445,6 @@ export default function AgentBoxDashboard() {
                     setCurrentSessionKey(`agent:${agent.name.toLowerCase().replace(/\s+/g, '-')}:main`);
                   }
                   setCurrentPage('agent-conversation');
-                  // Store initial message for the conversation to pick up
                   sessionStorage.setItem('agentbox_initial_message', message);
                 }
               }
@@ -418,7 +458,7 @@ export default function AgentBoxDashboard() {
       case 'settings':
         return <SettingsPage />;
       case 'skills':
-        return <SkillsPage agents={agents.map(a => ({ id: a.id, name: a.name, photo: a.photo }))} />;
+        return <SkillsPage agents={displayAgents.map(a => ({ id: a.id, name: a.name, photo: a.photo }))} />;
       case 'activity':
         return <ActivityPage />;
       case 'agents':
@@ -481,8 +521,8 @@ export default function AgentBoxDashboard() {
           <p className="text-slate-400 text-sm">{t.agents.subtitle}</p>
         </div>
 
-        {/* Loading state - show skeletons only when connected and loading */}
-        {!agentsLoaded && isConnected && (
+        {/* Loading state */}
+        {agentsLoading && (
           <div className="space-y-6">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="bg-[#131825] border border-slate-800/60 rounded-xl p-6 animate-pulse">
@@ -511,8 +551,8 @@ export default function AgentBoxDashboard() {
           </div>
         )}
 
-        {/* Empty state - when agents list is empty (both connected and disconnected) */}
-        {(agentsLoaded && agents.length === 0) && (
+        {/* Empty state */}
+        {(!agentsLoading && displayAgents.length === 0) && (
           <div className="mt-4 p-16 rounded-2xl border-2 border-dashed border-slate-800/50 flex flex-col items-center justify-center text-center">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20">
               <Bot size={40} className="text-blue-400" />
@@ -529,9 +569,9 @@ export default function AgentBoxDashboard() {
           </div>
         )}
 
-        {agentsLoaded && agents.length > 0 && (
+        {!agentsLoading && displayAgents.length > 0 && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {agents.map((agent) => (
+            {displayAgents.map((agent) => (
               <div
                 key={agent.id}
                 onClick={() => handleSelectAgent(String(agent.id))}
@@ -621,7 +661,6 @@ export default function AgentBoxDashboard() {
                           <button
                             onClick={(e) => { 
                               e.stopPropagation(); 
-                              // TODO: Implement assign to team functionality
                               console.log('Assign to team:', agent.id); 
                               setAgentMenuId(null);
                             }}
@@ -635,14 +674,14 @@ export default function AgentBoxDashboard() {
                             onClick={(e) => { 
                               e.stopPropagation(); 
                               if (confirm(`Êtes-vous sûr de vouloir supprimer l'agent ${agent.name} ?`)) {
-                                setAgents(prev => prev.filter(a => a.id !== agent.id));
+                                handleDeleteAgent(agent.id);
                               }
                               setAgentMenuId(null);
                             }}
                             className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
                           >
                             <X size={16} />
-                            Supprimer l'agent
+                            Supprimer l&apos;agent
                           </button>
                         </div>
                       )}
@@ -659,6 +698,19 @@ export default function AgentBoxDashboard() {
                     <span className="text-[11px] text-slate-600 font-medium italic">{t.agents.noChannels}</span>
                   )}
                 </div>
+
+                {/* Gateway status indicator for real agents */}
+                {agent.supabaseId && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      isConnected ? "bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]" : "bg-amber-500"
+                    )} />
+                    <span className="text-[11px] text-slate-500">
+                      {isConnected ? 'Gateway connected' : 'Gateway offline — demo mode'}
+                    </span>
+                  </div>
+                )}
 
                 {/* Token cost info */}
                 <div className="flex items-center gap-3 mb-4">
@@ -711,8 +763,8 @@ export default function AgentBoxDashboard() {
           </div>
         )}
 
-        {/* Scale hint - show for both modes when there are already agents */}
-        {agentsLoaded && agents.length > 0 && (
+        {/* Scale hint */}
+        {!agentsLoading && displayAgents.length > 0 && (
           <div className="mt-12 p-8 rounded-2xl border-2 border-dashed border-slate-800/50 flex flex-col items-center justify-center text-center">
             <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center mb-4 text-slate-500">
               <Plus size={24} />
@@ -763,7 +815,7 @@ export default function AgentBoxDashboard() {
         onNavigate={handleNavigate}
         favoriteAgents={favoriteAgents}
         onSelectAgent={handleSelectAgent}
-        agents={agents}
+        agents={displayAgents}
         mobileOpen={sidebarOpen}
         onMobileClose={() => setSidebarOpen(false)}
       />
@@ -775,6 +827,8 @@ export default function AgentBoxDashboard() {
         <AgentWizard
           onClose={() => setShowWizard(false)}
           onLaunch={handleLaunchAgent}
+          onAgentCreated={handleAgentCreated}
+          createAgent={user ? createAgent : undefined}
         />
       )}
 

@@ -27,5 +27,23 @@ export type Agent = {
   gateway_agent_id: string | null;
   gateway_session_key: string | null;
   config: Record<string, unknown>;
+  photo_url: string | null;
+  tone: string | null;
+  industry: string | null;
+  skills: string[];
   created_at: string;
+  updated_at: string;
+};
+
+export type Team = {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+};
+
+export type TeamMember = {
+  team_id: string;
+  agent_id: string;
 };

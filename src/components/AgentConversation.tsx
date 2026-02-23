@@ -19,6 +19,7 @@ import { useI18n } from '@/lib/i18n';
 import { useGateway } from '@/lib/GatewayContext';
 import type { GatewayEvent } from '@/lib/gateway';
 import AgentSettingsPanel from './AgentSettingsPanel';
+import AgentAvatar from './AgentAvatar';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -354,16 +355,13 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
           </button>
           <div className="h-5 w-px bg-slate-800" />
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <img
-                src={agent.photo}
-                alt={agent.name}
-                className="w-9 h-9 rounded-full border-2 border-slate-700 object-cover"
-              />
-              {agent.active && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-[#0B0F1A] shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-              )}
-            </div>
+            <AgentAvatar
+              name={agent.name}
+              photo={agent.photo}
+              size="sm"
+              active={agent.active}
+              showStatus
+            />
             <div>
               <h2 className="text-sm font-semibold text-white">{agent.name}</h2>
               <p className="text-[11px] text-slate-500">
@@ -443,11 +441,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
                     msg.sender === 'user' ? "flex-row-reverse" : "flex-row"
                   )}>
                     {msg.sender === 'agent' && (
-                      <img
-                        src={agent.photo}
-                        alt=""
-                        className="w-7 h-7 rounded-full border border-slate-700 object-cover flex-shrink-0"
-                      />
+                      <AgentAvatar name={agent.name} photo={agent.photo} size="xs" />
                     )}
                     <div className={cn(
                       "px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap",
@@ -475,11 +469,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
                 animate={{ opacity: 1, y: 0 }}
                 className="flex items-end gap-2"
               >
-                <img
-                  src={agent.photo}
-                  alt=""
-                  className="w-7 h-7 rounded-full border border-slate-700 object-cover"
-                />
+                <AgentAvatar name={agent.name} photo={agent.photo} size="xs" />
                 <div className="bg-[#1E293B] border border-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3 max-w-[70%]">
                   <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{streamingText}</p>
                 </div>
@@ -493,11 +483,7 @@ export default function AgentConversation({ agent, sessionKey, onBack, onOpenSet
                 animate={{ opacity: 1, y: 0 }}
                 className="flex items-end gap-2"
               >
-                <img
-                  src={agent.photo}
-                  alt=""
-                  className="w-7 h-7 rounded-full border border-slate-700 object-cover"
-                />
+                <AgentAvatar name={agent.name} photo={agent.photo} size="xs" />
                 <div className="bg-[#1E293B] border border-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-slate-400 mr-1">{t.conversation.thinking}</span>

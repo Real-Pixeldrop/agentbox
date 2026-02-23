@@ -18,6 +18,7 @@ import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
+import ConnectionStatus from './ConnectionStatus';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -229,6 +230,11 @@ export default function EnrichedSidebar({
       {/* Bottom Area */}
       <div className="mt-auto border-t border-slate-800/50 p-4 space-y-4">
         
+        {/* Gateway Connection Status */}
+        <div className="flex justify-start">
+          <ConnectionStatus />
+        </div>
+
         {/* Language Toggle */}
         <div className="flex justify-start">
           <button 

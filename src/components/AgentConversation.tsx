@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -12,10 +12,13 @@ import {
   Mic,
   MoreVertical,
   Coins,
+  AlertTriangle,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
+import { useGateway } from '@/lib/GatewayContext';
+import type { GatewayEvent } from '@/lib/gateway';
 import ChannelConfig from './ChannelConfig';
 
 function cn(...inputs: ClassValue[]) {
@@ -55,12 +58,16 @@ const MOCK_MESSAGES: ChatMessage[] = [
 
 export default function AgentConversation({ agent, onBack, onOpenSettings }: AgentConversationProps) {
   const { t } = useI18n();
+  const { isConnected, send, onEvent } = useGateway();
   const [activeTab, setActiveTab] = useState<'chat' | 'channels'>('chat');
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeRunIdRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -68,9 +75,98 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingText]);
 
-  const handleSend = () => {
+  // Load history on mount
+  useEffect(() => {
+    if (isConnected) {
+      loadHistory();
+    } else {
+      // Demo mode: show mock messages
+      setMessages(MOCK_MESSAGES);
+      setHistoryLoaded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
+
+  // Listen for streaming events
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const unsubscribe = onEvent((event: GatewayEvent) => {
+      handleStreamEvent(event);
+    });
+
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, onEvent]);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const result = await send<{ messages?: Array<{ role: string; content: string; timestamp?: string }> }>('chat.history', {});
+      if (result?.messages && result.messages.length > 0) {
+        const parsed: ChatMessage[] = result.messages.map((msg, i) => ({
+          id: `h${i}`,
+          sender: msg.role === 'user' ? 'user' as const : 'agent' as const,
+          text: msg.content,
+          time: msg.timestamp
+            ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+            : '',
+        }));
+        setMessages(parsed);
+      }
+    } catch {
+      // Fallback: show empty or keep existing
+    }
+    setHistoryLoaded(true);
+  }, [send]);
+
+  const handleStreamEvent = useCallback((event: GatewayEvent) => {
+    const { type, data, runId } = event;
+
+    // Only process events for the active run
+    if (activeRunIdRef.current && runId && runId !== activeRunIdRef.current) return;
+
+    switch (type) {
+      case 'chat.text':
+      case 'chat.delta':
+      case 'chat.chunk': {
+        const text = (data.text || data.content || data.delta || '') as string;
+        if (text) {
+          setStreamingText((prev) => prev + text);
+        }
+        break;
+      }
+      case 'chat.done':
+      case 'chat.end':
+      case 'chat.complete': {
+        // Finalize the streaming message
+        setStreamingText((prev) => {
+          if (prev) {
+            const finalMsg: ChatMessage = {
+              id: `m${Date.now()}`,
+              sender: 'agent',
+              text: prev,
+              time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            };
+            setMessages((msgs) => [...msgs, finalMsg]);
+          }
+          return '';
+        });
+        setIsTyping(false);
+        activeRunIdRef.current = null;
+        break;
+      }
+      case 'chat.error': {
+        setIsTyping(false);
+        setStreamingText('');
+        activeRunIdRef.current = null;
+        break;
+      }
+    }
+  }, []);
+
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
 
     const userMsg: ChatMessage = {
@@ -79,21 +175,43 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
       text: inputValue.trim(),
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
     };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
+    const messageText = inputValue.trim();
     setInputValue('');
     setIsTyping(true);
+    setStreamingText('');
 
-    // Mock agent response
-    setTimeout(() => {
-      const agentMsg: ChatMessage = {
-        id: `m${Date.now() + 1}`,
-        sender: 'agent',
-        text: "Understood. I'll take care of it right away and update you once it's done.",
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      };
-      setMessages(prev => [...prev, agentMsg]);
-      setIsTyping(false);
-    }, 1500);
+    if (isConnected) {
+      // Live mode: send via gateway
+      try {
+        const result = await send<{ runId?: string }>('chat.send', { message: messageText });
+        if (result?.runId) {
+          activeRunIdRef.current = result.runId;
+        }
+      } catch {
+        setIsTyping(false);
+        // Add error message
+        const errorMsg: ChatMessage = {
+          id: `m${Date.now() + 1}`,
+          sender: 'agent',
+          text: "⚠️ Failed to send message. Please check the gateway connection.",
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
+    } else {
+      // Demo mode: mock response
+      setTimeout(() => {
+        const agentMsg: ChatMessage = {
+          id: `m${Date.now() + 1}`,
+          sender: 'agent',
+          text: "Understood. I'll take care of it right away and update you once it's done.",
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        };
+        setMessages((prev) => [...prev, agentMsg]);
+        setIsTyping(false);
+      }, 1500);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -105,6 +223,14 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
 
   return (
     <div className="flex flex-col h-screen bg-[#0B0F1A]">
+      {/* Demo mode banner */}
+      {!isConnected && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-400 text-xs font-medium">
+          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+          {t.conversation.demoBanner}
+        </div>
+      )}
+
       {/* Header */}
       <header className="h-16 border-b border-slate-800/50 bg-[#0B0F1A]/80 backdrop-blur-md sticky top-0 z-10 px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -190,6 +316,15 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
         <>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+            {!historyLoaded && isConnected && (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex items-center gap-2 text-slate-500 text-sm">
+                  <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                  {t.conversation.loadingHistory}
+                </div>
+              </div>
+            )}
+
             <AnimatePresence initial={false}>
               {messages.map((msg) => (
                 <motion.div
@@ -232,8 +367,26 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
               ))}
             </AnimatePresence>
 
+            {/* Streaming text (in-progress response) */}
+            {streamingText && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-end gap-2"
+              >
+                <img
+                  src={agent.photo}
+                  alt=""
+                  className="w-7 h-7 rounded-full border border-slate-700 object-cover"
+                />
+                <div className="bg-[#1E293B] border border-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3 max-w-[70%]">
+                  <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{streamingText}</p>
+                </div>
+              </motion.div>
+            )}
+
             {/* Typing indicator */}
-            {isTyping && (
+            {isTyping && !streamingText && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -246,6 +399,7 @@ export default function AgentConversation({ agent, onBack, onOpenSettings }: Age
                 />
                 <div className="bg-[#1E293B] border border-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400 mr-1">{t.conversation.thinking}</span>
                     <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce [animation-delay:0ms]" />
                     <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce [animation-delay:150ms]" />
                     <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce [animation-delay:300ms]" />

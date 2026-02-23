@@ -206,6 +206,8 @@ const fr: Translations = {
     online: "En ligne",
     offline: "Hors ligne",
     thinking: "Réflexion...",
+    demoBanner: "Mode démo — Connectez le gateway pour des agents en direct",
+    loadingHistory: "Chargement de l'historique...",
   },
   // Channel configuration
   channelConfig: {
@@ -229,6 +231,29 @@ const fr: Translations = {
     webhookUrl: "URL du Webhook",
     webhookUrlPlaceholder: "https://discord.com/api/webhooks/...",
     premiumOnly: "Fonctionnalité Premium — passez au plan supérieur pour activer",
+  },
+  // Gateway
+  gateway: {
+    title: "Connexion Gateway",
+    desc: "Connectez-vous à votre gateway pour des interactions en direct avec vos agents.",
+    url: "URL du Gateway",
+    urlPlaceholder: "ws://localhost:18789",
+    token: "Token d'authentification",
+    tokenPlaceholder: "Collez votre token gateway...",
+    testConnection: "Tester la connexion",
+    testing: "Test en cours...",
+    connected: "Connecté",
+    disconnected: "Déconnecté",
+    connecting: "Connexion...",
+    error: "Erreur de connexion",
+    connectionSuccess: "Connexion au gateway réussie !",
+    connectionFailed: "Échec de la connexion au gateway.",
+    statusTooltip: "Gateway : {url}",
+    changeConnection: "Modifier la connexion gateway",
+    save: "Enregistrer et connecter",
+    cancel: "Annuler",
+    modalTitle: "Paramètres Gateway",
+    modalDesc: "Configurez la connexion à votre gateway d'agents.",
   },
   // Settings page
   settings: {
@@ -304,6 +329,8 @@ const fr: Translations = {
   toast: {
     agentCreated: "Agent créé avec succès !",
     agentLaunched: "est maintenant actif et prêt à travailler.",
+    agentDeployed: "Agent déployé sur le gateway !",
+    agentDeployFailed: "Échec du déploiement de l'agent sur le gateway.",
   },
 };
 

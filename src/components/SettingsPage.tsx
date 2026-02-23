@@ -13,10 +13,14 @@ import {
   Eye,
   EyeOff,
   Save,
+  Wifi,
+  WifiOff,
+  Loader2,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
+import { useGateway } from '@/lib/GatewayContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -67,9 +71,15 @@ const Section = ({ title, desc, icon: Icon, children }: SectionProps) => (
 
 export default function SettingsPage() {
   const { t, language, setLanguage } = useI18n();
+  const { status, gatewayUrl, connect, disconnect } = useGateway();
 
   const [profileName, setProfileName] = useState('Akli Goudjil');
   const [profileEmail, setProfileEmail] = useState('akli@pixel-drop.com');
+  const [gwUrl, setGwUrl] = useState(gatewayUrl || 'ws://localhost:18789');
+  const [gwToken, setGwToken] = useState('');
+  const [showGwToken, setShowGwToken] = useState(false);
+  const [gwTesting, setGwTesting] = useState(false);
+  const [gwTestResult, setGwTestResult] = useState<'success' | 'error' | null>(null);
   const [openaiKey, setOpenaiKey] = useState('sk-...xxxx');
   const [anthropicKey, setAnthropicKey] = useState('');
   const [showOpenai, setShowOpenai] = useState(false);
@@ -110,6 +120,106 @@ export default function SettingsPage() {
       </header>
 
       <div className="p-8 max-w-3xl mx-auto space-y-6">
+        {/* Gateway Connection */}
+        <Section title={t.gateway.title} desc={t.gateway.desc} icon={Wifi}>
+          <div className="space-y-4">
+            {/* Status indicator */}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-[#0B0F1A] border border-slate-800/50">
+              <div className={cn(
+                "w-3 h-3 rounded-full flex-shrink-0",
+                status === 'connected'
+                  ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"
+                  : status === 'connecting'
+                    ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                    : "bg-red-500/60"
+              )} />
+              <span className="text-sm text-slate-300 font-medium">
+                {status === 'connected' ? t.gateway.connected : status === 'connecting' ? t.gateway.connecting : t.gateway.disconnected}
+              </span>
+              {status === 'connected' && (
+                <button
+                  onClick={() => disconnect()}
+                  className="ml-auto text-xs text-red-400 hover:text-red-300 font-medium transition-colors"
+                >
+                  Disconnect
+                </button>
+              )}
+            </div>
+
+            {gwTestResult && (
+              <div className={cn(
+                "flex items-center gap-2 p-3 rounded-lg text-xs font-medium",
+                gwTestResult === 'success'
+                  ? "bg-green-500/10 border border-green-500/20 text-green-400"
+                  : "bg-red-500/10 border border-red-500/20 text-red-400"
+              )}>
+                {gwTestResult === 'success' ? (
+                  <Check className="w-3.5 h-3.5" />
+                ) : (
+                  <WifiOff className="w-3.5 h-3.5" />
+                )}
+                {gwTestResult === 'success' ? t.gateway.connectionSuccess : t.gateway.connectionFailed}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium uppercase tracking-widest text-slate-500">{t.gateway.url}</label>
+              <input
+                type="text"
+                value={gwUrl}
+                onChange={(e) => setGwUrl(e.target.value)}
+                placeholder={t.gateway.urlPlaceholder}
+                className="w-full bg-[#0B0F1A] border border-slate-800 rounded-lg px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium uppercase tracking-widest text-slate-500">{t.gateway.token}</label>
+              <div className="relative">
+                <input
+                  type={showGwToken ? 'text' : 'password'}
+                  value={gwToken}
+                  onChange={(e) => setGwToken(e.target.value)}
+                  placeholder={t.gateway.tokenPlaceholder}
+                  className="w-full bg-[#0B0F1A] border border-slate-800 rounded-lg px-4 py-2.5 pr-10 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                />
+                <button
+                  onClick={() => setShowGwToken(!showGwToken)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                >
+                  {showGwToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                setGwTesting(true);
+                setGwTestResult(null);
+                try {
+                  await connect(gwUrl, gwToken);
+                  setGwTestResult('success');
+                } catch {
+                  setGwTestResult('error');
+                }
+                setGwTesting(false);
+              }}
+              disabled={!gwUrl || gwTesting}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
+                !gwUrl || gwTesting
+                  ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
+              )}
+            >
+              {gwTesting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Wifi className="w-4 h-4" />
+              )}
+              {gwTesting ? t.gateway.testing : t.gateway.testConnection}
+            </button>
+          </div>
+        </Section>
+
         {/* Profile */}
         <Section title={t.settings.profile} desc={t.settings.profileDesc} icon={User}>
           <div className="space-y-4">

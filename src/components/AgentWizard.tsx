@@ -21,10 +21,12 @@ import {
   Lightbulb,
   Rocket,
   Info,
+  Loader2,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useI18n } from '@/lib/i18n';
+import { useGateway } from '@/lib/GatewayContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -78,9 +80,11 @@ const StepHint = ({ icon: Icon, title, text }: { icon: React.ElementType; title:
 
 export default function CreateAgentWizard({ onClose, onLaunch }: AgentWizardProps) {
   const { t } = useI18n();
+  const { isConnected, send } = useGateway();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(INITIAL_DATA);
   const [isLaunching, setIsLaunching] = useState(false);
+  const [deployError, setDeployError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 3 steps now: Soul (identity), Skills, Review
@@ -106,19 +110,73 @@ export default function CreateAgentWizard({ onClose, onLaunch }: AgentWizardProp
     }));
   };
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
     setIsLaunching(true);
-    setTimeout(() => {
-      onLaunch?.({
-        name: formData.name || 'New Agent',
-        description: formData.description,
-        tone: formData.tone,
-        industry: formData.industry,
-        photo: formData.photo,
-        skills: formData.skills,
-      });
-      setIsLaunching(false);
-    }, 800);
+    setDeployError(null);
+
+    const agentData = {
+      name: formData.name || 'New Agent',
+      description: formData.description,
+      tone: formData.tone,
+      industry: formData.industry,
+      photo: formData.photo,
+      skills: formData.skills,
+    };
+
+    if (isConnected) {
+      // Live mode: deploy via gateway
+      try {
+        // Get current config
+        const config = await send<Record<string, unknown>>('config.get', {});
+        const currentAgents = (config?.agents as Record<string, unknown>)?.list as Array<Record<string, unknown>> || [];
+
+        // Build SOUL.md content
+        const soulContent = [
+          `# ${agentData.name}`,
+          '',
+          `## Role`,
+          agentData.description || 'AI Assistant',
+          '',
+          `## Communication Style`,
+          `Tone: ${agentData.tone}`,
+          agentData.industry ? `Industry: ${agentData.industry}` : '',
+          '',
+          formData.specialInstructions ? `## Special Instructions\n${formData.specialInstructions}` : '',
+        ].filter(Boolean).join('\n');
+
+        // Add new agent to config
+        const newAgentConfig = {
+          name: agentData.name,
+          'SOUL.md': soulContent,
+          skills: agentData.skills,
+          enabled: true,
+        };
+
+        const newConfig = {
+          ...config,
+          agents: {
+            ...(config?.agents as Record<string, unknown> || {}),
+            list: [...currentAgents, newAgentConfig],
+          },
+        };
+
+        // Apply new config
+        await send('config.apply', newConfig);
+
+        // Call the local callback to update UI
+        onLaunch?.(agentData);
+      } catch (err) {
+        setDeployError(err instanceof Error ? err.message : 'Deploy failed');
+        // Still create the agent locally
+        onLaunch?.(agentData);
+      }
+    } else {
+      // Demo mode: mock delay then create locally
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      onLaunch?.(agentData);
+    }
+
+    setIsLaunching(false);
   };
 
   const SKILLS = [
@@ -436,13 +494,24 @@ export default function CreateAgentWizard({ onClose, onLaunch }: AgentWizardProp
                   </p>
                 </div>
 
+                {deployError && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>{deployError}</p>
+                  </div>
+                )}
+
                 <div className="space-y-4 pt-4">
                   <button
                     onClick={handleLaunch}
                     disabled={isLaunching}
                     className="w-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-60 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 group"
                   >
-                    <Zap className={cn("w-5 h-5", isLaunching && "animate-pulse")} />
+                    {isLaunching ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Zap className="w-5 h-5" />
+                    )}
                     {isLaunching ? t.wizard.launching : t.wizard.launchAgent}
                   </button>
                   <button

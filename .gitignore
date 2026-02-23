@@ -1,9 +1,32 @@
 node_modules
 .next
 out
+dist
+build
+
+# Environment & secrets
+.env
+.env.*
+.env.local
+.env.production
+!.env.example
+
+# Supabase
+supabase/.temp/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
-.env.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Vercel
 .vercel
-supabase/.temp/

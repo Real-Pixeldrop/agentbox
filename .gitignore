@@ -1,6 +1,29 @@
 node_modules
 .next
 out
+dist
+build
+
+# Environment & secrets
+.env
+.env.*
+.env.local
+.env.production
+!.env.example
+
+# OS
 .DS_Store
+Thumbs.db
+
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Vercel
+.vercel
